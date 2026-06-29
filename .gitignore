@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .env
+classroom_ai.db
+*.db
 *.egg-info/
 dist/
 build/

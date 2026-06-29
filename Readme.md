@@ -16,6 +16,8 @@ ClassroomAI is an **AI-powered educational content generator** that turns textbo
 
 All from a **single source** – the chapter text, PDF, or images you provide.
 
+The app ships with **user accounts and role-based access** (teacher, student, course creator, admin), so every content-generation feature sits behind secure login.
+
 
 
 ## 🔧 How It's Made (Technical Overview)
@@ -37,7 +39,9 @@ ClassroomAI uses **two types of AI**:
 
 ```
 📱 React Frontend (What you see)
-   ↓ (sends chapter text, PDF, or images)
+   ↓ (login / register, then sends chapter text, PDF, or images)
+🔐 Auth Layer (JWT login, role-based access, SQL database)
+   ↓ (verifies the user, then forwards the request)
 ⚙️ FastAPI Python Backend (does the work)
    ├─ Explain Module (generates explanations)
    ├─ Quiz Module (creates questions)
@@ -66,6 +70,24 @@ ClassroomAI uses **two types of AI**:
 ---
 
 ## 📊 Core Features Explained
+
+### 0. **Accounts & Access Control (Authentication Module)**
+- **Sign up / log in**: Email + password accounts with secure password hashing (bcrypt)
+- **JWT tokens**: Login returns a bearer token used to access every content feature
+- **Role-based access**: Four roles — `teacher`, `student`, `course_creator`, and `admin`
+  - Public registration is allowed for non-admin roles
+  - Admin accounts are created via the bootstrap setting or the `init_db` script (never via public signup)
+  - Admin-only endpoints (e.g. listing all users) are protected by role checks
+- **Persistent storage**: Users are stored in a SQL database (SQLite by default, PostgreSQL for production)
+- **Best For**: Securing the app and tailoring access for different kinds of users
+
+**Key endpoints:**
+- `POST /api/v1/auth/register` — create an account
+- `POST /api/v1/auth/login` — get a bearer token (form: `username=email`, `password`)
+- `GET /api/v1/auth/me` — current user profile (requires token)
+- `GET /api/v1/auth/users` — list all users (admin only)
+
+> ⚠️ **All content endpoints (explain, quiz, slides, flashcards, audio, video, illustration, infographic) require a valid bearer token.** Register/log in first, then send the token as `Authorization: Bearer <token>`.
 
 ### 1. **Learn (Explanation Module)**
 - **Input**: Chapter text, PDF, or images of textbook pages
@@ -213,6 +235,18 @@ LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_CHAT_MODEL=llama3.2
 
+# Database (SQLite by default; PostgreSQL for production):
+DATABASE_URL=sqlite:///./classroom_ai.db
+
+# Authentication (JWT) — use a long random string in production:
+SECRET_KEY=change-me-to-a-long-random-string
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+
+# Optional: auto-create the first admin on startup (only if no admin exists):
+# BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+# BOOTSTRAP_ADMIN_PASSWORD=your-secure-password
+# BOOTSTRAP_ADMIN_NAME=Admin
+
 # For stock photos (optional):
 PEXELS_API_KEY=your-pexels-key-here
 
@@ -222,7 +256,21 @@ SD_WEBUI_URL=http://127.0.0.1:7860
 
 **Note**: Never share your `.env` file – it contains secrets!
 
-### Step 4: Start the Backend Server
+### Step 4: Initialize the Database
+
+The database tables are created automatically when the backend starts, but you can also set them up (and create an admin) ahead of time:
+
+```bash
+# Just create the tables
+python scripts/init_db.py --init
+
+# Create the tables AND an admin account
+python scripts/init_db.py --admin-email admin@example.com --admin-password "your-secure-password" --admin-name "Admin"
+```
+
+By default this creates a local SQLite file (`classroom_ai.db`) in the project root. Set `DATABASE_URL` to a PostgreSQL URL for production.
+
+### Step 5: Start the Backend Server
 
 ```bash
 # Make sure virtual environment is activated, then:
@@ -236,7 +284,7 @@ Uvicorn running on http://127.0.0.1:8000
 
 ✅ **Backend is now running!**
 
-### Step 5: Set Up Frontend (Optional but Recommended)
+### Step 6: Set Up Frontend (Optional but Recommended)
 
 ```bash
 # In a new terminal window:
@@ -252,7 +300,7 @@ Vite server running at http://localhost:5173
 
 ✅ **Frontend is now running!**
 
-### Step 6: Access the Application
+### Step 7: Access the Application
 
 - **Web Interface**: Open http://localhost:5173 in your browser
 - **API Documentation**: Open http://localhost:8000/docs
@@ -265,19 +313,46 @@ Vite server running at http://localhost:5173
 ### Using the Web Interface (Easiest)
 
 1. **Open** http://localhost:5173
-2. **Paste** your chapter text or upload a PDF/images
-3. **Choose language** (English, Hindi, Roman Hindi)
-4. **Click** "Generate Explanation"
-5. **See results** – explanation, diagram, and suggestions
-6. **Generate quiz, slides, audio, etc.** from the same content
-7. **Download** PowerPoint, save audio, etc.
+2. **Register or log in** with your email and password
+3. **Paste** your chapter text or upload a PDF/images
+4. **Choose language** (English, Hindi, Roman Hindi)
+5. **Click** "Generate Explanation"
+6. **See results** – explanation, diagram, and suggestions
+7. **Generate quiz, slides, audio, etc.** from the same content
+8. **Download** PowerPoint, save audio, etc.
 
 ### Using the API (For Developers)
 
-**Generate an Explanation:**
+All content endpoints are protected. First register and log in to obtain a bearer token, then include it on every request.
+
+**Register an account:**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "teacher@example.com",
+    "password": "supersecret",
+    "full_name": "Jane Teacher",
+    "role": "teacher"
+  }'
+```
+
+**Log in to get a token:**
+
+```bash
+# Login uses form-encoded data; username is your email
+curl -X POST "http://localhost:8000/api/v1/auth/login" \
+  -d "username=teacher@example.com" \
+  -d "password=supersecret"
+# → {"access_token": "eyJhbGci...", "token_type": "bearer"}
+```
+
+**Generate an Explanation (with token):**
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/explain/text" \
+  -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "chapter_text": "Photosynthesis is the process...",
@@ -290,6 +365,7 @@ curl -X POST "http://localhost:8000/api/v1/explain/text" \
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/quiz/generate" \
+  -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "chapter_text": "Photosynthesis is the process...",
@@ -302,6 +378,7 @@ curl -X POST "http://localhost:8000/api/v1/quiz/generate" \
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/slides/generate" \
+  -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "topic": "Photosynthesis",
@@ -372,6 +449,19 @@ To generate images locally without API costs:
 2. Run it (follow their instructions)
 3. Add to `.env`: `SD_WEBUI_URL=http://127.0.0.1:7860`
 
+### Configure Authentication & Database
+
+1. **Set a secret key** (used to sign JWT tokens):
+   - Add to `.env`: `SECRET_KEY=<long-random-string>`
+   - Generate one with: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+2. **Choose token lifetime**: `ACCESS_TOKEN_EXPIRE_MINUTES=10080` (7 days by default)
+3. **Pick a database**:
+   - SQLite (default): `DATABASE_URL=sqlite:///./classroom_ai.db`
+   - PostgreSQL: `DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/classroom_ai`
+4. **Create the first admin** (either option):
+   - Bootstrap on startup: set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env`
+   - Or run: `python scripts/init_db.py --admin-email admin@example.com --admin-password "your-password"`
+
 ---
 
 ## 📁 Project Structure (What's Where)
@@ -380,13 +470,21 @@ To generate images locally without API costs:
 classroom-ai/
 │
 ├── app/                          # Python backend
-│   ├── main.py                   # Main FastAPI app
+│   ├── main.py                   # Main FastAPI app (+ admin bootstrap)
 │   ├── core/
-│   │   └── config.py             # Configuration settings
+│   │   ├── config.py             # Configuration settings
+│   │   ├── security.py           # Password hashing + JWT tokens
+│   │   └── deps.py               # Auth dependencies (current user, roles)
+│   ├── db/
+│   │   ├── base.py               # SQLAlchemy declarative base
+│   │   └── session.py            # DB engine, session, init_db
+│   ├── models/
+│   │   └── user.py               # User model + UserRole enum
 │   ├── api/
 │   │   └── v1/
-│   │       ├── router.py         # All routes
+│   │       ├── router.py         # All routes (auth public, rest protected)
 │   │       └── endpoints/        # Individual endpoints
+│   │           ├── auth.py       # Register / login / me / users
 │   │           ├── explain.py    # Explanation endpoint
 │   │           ├── quiz.py       # Quiz endpoint
 │   │           ├── slides.py     # Slides endpoint
@@ -410,11 +508,20 @@ classroom-ai/
 │   │       ├── ollama_provider.py
 │   │       └── factory.py        # Creates right LLM provider
 │   └── schemas/                  # Data structure definitions
+│       ├── auth.py               # Auth request/response models
+│       └── ...                   # Explain, quiz, slides, etc.
+│
+├── scripts/
+│   └── init_db.py                # Create tables / bootstrap admin
 │
 ├── frontend/                     # React web interface
 │   ├── src/
+│   │   ├── AppRoot.tsx           # Routes between auth and main app
+│   │   ├── AuthContext.tsx       # Holds the logged-in user + token
+│   │   ├── AuthPage.tsx          # Login / register screen
+│   │   ├── auth.ts               # Auth API calls + token storage
 │   │   ├── App.tsx               # Main app component
-│   │   ├── api.ts                # Calls backend API
+│   │   ├── api.ts                # Calls backend API (with token)
 │   │   └── components/           # React components
 │   ├── package.json              # Frontend dependencies
 │   └── vite.config.ts            # Frontend build config
@@ -422,12 +529,16 @@ classroom-ai/
 ├── requirements.txt              # Python dependencies (what to install)
 ├── .env.example                  # Example configuration
 ├── .env                          # Your actual secrets (gitignored)
-└── README.MD                     # Original README
+├── classroom_ai.db               # SQLite database (created at runtime)
+└── Readme.md                     # This guide
 
 Key Directories Explained:
 - app/services/    = Where the real work happens
 - app/api/v1/      = Web endpoints (what frontend calls)
-- app/core/        = Configuration and settings
+- app/core/        = Configuration, security, and auth dependencies
+- app/db/          = Database engine and session setup
+- app/models/      = Database tables (e.g. users)
+- scripts/         = Setup helpers (database init, admin creation)
 ```
 
 ---
@@ -481,6 +592,20 @@ Key Directories Explained:
 3. If using OpenAI, make sure account has payment method
 4. If using Ollama, make sure it's running: `ollama serve`
 
+### Problem: "401 Unauthorized" / "Could not validate credentials"
+
+**Solution:**
+- Content endpoints require login — register and log in first
+- Pass the token on requests: `Authorization: Bearer <token>`
+- Tokens expire (default 7 days); log in again to get a fresh one
+- Make sure `SECRET_KEY` in `.env` hasn't changed since the token was issued (changing it invalidates existing tokens)
+
+### Problem: "Admin account cannot be created via public registration"
+
+**Solution:**
+- This is expected — admins can't be made through `POST /auth/register`
+- Use the bootstrap settings in `.env`, or run `python scripts/init_db.py --admin-email ... --admin-password ...`
+
 ### Problem: "Module not found" error
 
 **Solution:**
@@ -526,6 +651,9 @@ pip install -r requirements.txt
 | **FastAPI** | Web framework | Handles requests, serves API |
 | **Python 3.9+** | Language | All backend code |
 | **Pydantic** | Data validation | Makes sure data is correct format |
+| **SQLAlchemy** | ORM / database | Stores users (SQLite or PostgreSQL) |
+| **python-jose** | JWT tokens | Signs and verifies login tokens |
+| **bcrypt** | Password hashing | Securely stores passwords |
 | **OpenAI SDK** | Cloud AI | Calls OpenAI API |
 | **Ollama** | Local AI | Runs AI models locally |
 | **python-pptx** | PowerPoint | Creates slide decks |
@@ -653,7 +781,11 @@ source .venv/bin/activate        # Mac/Linux
 pip install -r requirements.txt
 cp .env.example .env
 
-# Edit .env with your API keys
+# Edit .env with your API keys and SECRET_KEY
+
+# Initialize the database (and optionally create an admin)
+python scripts/init_db.py --init
+# python scripts/init_db.py --admin-email admin@example.com --admin-password "your-password"
 
 # Run backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -705,6 +837,10 @@ curl http://127.0.0.1:8000/docs
 | **Frontend** | The web page you see and click (user interface) |
 | **API Key** | Secret password that proves you're allowed to use a service |
 | **LLM** | Large Language Model – AI that understands and generates text |
+| **JWT** | JSON Web Token – a signed token that proves you're logged in |
+| **Bearer Token** | The login token you send with each request to access protected features |
+| **Role** | A user's permission level (teacher, student, course creator, admin) |
+| **ORM / SQLAlchemy** | Tool that lets Python talk to a database without raw SQL |
 | **FastAPI** | Framework for quickly building web services in Python |
 | **React** | Framework for building interactive web pages |
 | **Vite** | Fast tool for building and running React apps |
@@ -722,6 +858,6 @@ curl http://127.0.0.1:8000/docs
 
 ---
 
-**Last Updated**: May 2026
-**Version**: 1.0
+**Last Updated**: June 2026
+**Version**: 1.1
 **Status**: Complete & Ready to Use

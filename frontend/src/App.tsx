@@ -31,6 +31,8 @@ import {
   type LessonOverviewStyle,
 } from './api'
 import { MermaidDiagram } from './MermaidDiagram'
+import { ROLE_LABELS } from './auth'
+import { useAuth } from './AuthContext'
 import './App.css'
 
 type Mode = 'text' | 'images' | 'pdf'
@@ -66,6 +68,7 @@ function briefKindLabel(b: { kind: string; suggested_format: string }): string {
 
 /** Root ClassroomAI page component that wires the Learn/Quiz/Slides/Audio flows. */
 function App() {
+  const { user, logout } = useAuth()
   const [mainTab, setMainTab] = useState<MainTab>('learn')
   const [mode, setMode] = useState<Mode>('text')
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguageCode>('english')
@@ -637,6 +640,20 @@ function App() {
           </p>
         </div>
       </header>
+
+      {user && (
+        <div className="user-bar">
+          <div className="user-bar-meta">
+            <span>
+              Signed in as <strong>{user.full_name}</strong> ({user.email})
+            </span>
+            <span className="user-role-badge">{ROLE_LABELS[user.role]}</span>
+          </div>
+          <button type="button" className="secondary" onClick={logout}>
+            Sign out
+          </button>
+        </div>
+      )}
 
       <div className="tabs">
         <button type="button" className={mainTab === 'learn' ? 'active' : ''} onClick={() => setMainTab('learn')}>

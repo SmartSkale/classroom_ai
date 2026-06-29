@@ -1,8 +1,10 @@
 import asyncio
 import base64
+import functools
 import json
 import re
 
+import anyio
 from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
@@ -540,7 +542,12 @@ async def explain_from_pdf_bytes(
     ocr_images: bool,
 ) -> ExplainResponse:
     """Extract PDF text and generate the explanation payload from it."""
-    ext = extract_pdf_to_text(pdf_bytes, ocr_pages=ocr_pages, ocr_images=ocr_images)
+    # pdfplumber + OCR is CPU/IO heavy; run it off the event loop.
+    ext = await anyio.to_thread.run_sync(
+        functools.partial(
+            extract_pdf_to_text, pdf_bytes, ocr_pages=ocr_pages, ocr_images=ocr_images
+        )
+    )
     prefix = (
         "[Source: PDF extraction — content from **all extracted pages** is included below (each page starts with "
         "=== Page N ===). Tables appear in [Table …] blocks; text from figures or scans in [Text from image…] or "

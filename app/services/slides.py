@@ -1,10 +1,12 @@
 import asyncio
+import functools
 import io
 import json
 import math
 import re
 import uuid
 
+import anyio
 from pydantic import ValidationError
 
 from app.schemas.language import OutputLanguage
@@ -359,21 +361,28 @@ async def generate_slide_deck(
             if out:
                 raw, _mime, attr = out
                 attrs[i] = attr
+        # Pillow image processing is CPU-bound; keep it off the event loop.
         if raw:
-            slide_pngs.append(_prepare_stock_photo_for_slide(raw))
+            slide_pngs.append(await anyio.to_thread.run_sync(_prepare_stock_photo_for_slide, raw))
         else:
-            slide_pngs.append(_synthetic_slide_background(i, len(slides)))
+            slide_pngs.append(
+                await anyio.to_thread.run_sync(_synthetic_slide_background, i, len(slides))
+            )
 
     final_slides = [
         s.model_copy(update={"photo_attribution": attrs[i]})
         for i, s in enumerate(slides)
     ]
 
-    pptx_bytes = _build_pptx_bytes(
-        deck_title=deck_title,
-        topic=topic,
-        slides=final_slides,
-        slide_images=slide_pngs,
+    # python-pptx deck assembly is CPU-bound; run it off the event loop.
+    pptx_bytes = await anyio.to_thread.run_sync(
+        functools.partial(
+            _build_pptx_bytes,
+            deck_title=deck_title,
+            topic=topic,
+            slides=final_slides,
+            slide_images=slide_pngs,
+        )
     )
     deck_id = f"sdeck_{uuid.uuid4().hex[:16]}"
     filename = f"{_safe_filename(deck_title)}.pptx"

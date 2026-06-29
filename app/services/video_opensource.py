@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import anyio
 import imageio.v2 as imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -289,7 +290,9 @@ async def _run_job(
     seconds: int,
     preset: Literal["classic", "motion_plus"],
 ) -> None:
-    try:
+    # Frame rendering + ffmpeg encoding are CPU/IO heavy; run the whole job in a
+    # worker thread so the event loop stays responsive.
+    def _render() -> None:
         job.status = "in_progress"
         w, h = 1280, 720
         lines = _split_lines(prompt)
@@ -330,13 +333,15 @@ async def _run_job(
             writer.append_data(frame)
             if i % max(1, total_frames // 20) == 0:
                 job.progress = i / total_frames
-                await asyncio.sleep(0)
         writer.close()
 
         job.bytes_data = out_path.read_bytes()
         out_path.unlink(missing_ok=True)
         job.progress = 1.0
         job.status = "completed"
+
+    try:
+        await anyio.to_thread.run_sync(_render)
     except Exception as e:  # noqa: BLE001
         job.status = "failed"
         job.error = {"code": "opensource_video_failed", "message": str(e)}

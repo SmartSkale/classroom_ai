@@ -7,6 +7,7 @@ Pipeline: LLM → script JSON → per-segment slide image + TTS → ffmpeg mux +
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import math
 import re
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import anyio
 import imageio_ffmpeg
 from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel, Field, ValidationError
@@ -401,7 +403,10 @@ async def _run_job(
                 if out:
                     bg = out[0]
 
-            png_bytes = _render_slide(seg.heading, seg.narration, bg_bytes=bg)
+            # PIL rendering is CPU-bound; keep it off the event loop.
+            png_bytes = await anyio.to_thread.run_sync(
+                functools.partial(_render_slide, seg.heading, seg.narration, bg_bytes=bg)
+            )
             img_path = tmpdir / f"seg_{i}.png"
             img_path.write_bytes(png_bytes)
 
@@ -413,14 +418,17 @@ async def _run_job(
             mp3_path = tmpdir / f"seg_{i}.mp3"
             mp3_path.write_bytes(mp3_bytes)
 
+            # ffmpeg subprocess calls block; run them in a worker thread.
             seg_mp4 = tmpdir / f"seg_{i}.mp4"
-            _mux_still_plus_audio(ffmpeg_bin, img_path, mp3_path, seg_mp4)
+            await anyio.to_thread.run_sync(
+                _mux_still_plus_audio, ffmpeg_bin, img_path, mp3_path, seg_mp4
+            )
             parts.append(seg_mp4)
-            total_dur += _ffprobe_duration(ffmpeg_bin, seg_mp4)
+            total_dur += await anyio.to_thread.run_sync(_ffprobe_duration, ffmpeg_bin, seg_mp4)
             job.progress = 0.12 + 0.78 * ((i + 1) / max(n, 1))
 
         final = tmpdir / "overview.mp4"
-        _concat_mp4s(ffmpeg_bin, parts, final)
+        await anyio.to_thread.run_sync(_concat_mp4s, ffmpeg_bin, parts, final)
         job.bytes_data = final.read_bytes()
         job.seconds = str(int(math.ceil(total_dur))) if total_dur else None
         job.progress = 1.0

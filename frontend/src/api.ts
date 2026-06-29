@@ -1,4 +1,18 @@
+import axios from 'axios'
+import { getStoredToken } from './auth'
+
 const API = '/api/v1'
+
+function withAuth(init: RequestInit = {}): RequestInit {
+  const headers = new Headers(init.headers)
+  const token = getStoredToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  return { ...init, headers }
+}
+
+async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  return fetch(input, withAuth(init))
+}
 
 export type VisualBrief = {
   title: string
@@ -88,7 +102,7 @@ export async function explainFromText(
   if (topicHint.trim()) fd.set('topic_hint', topicHint.trim())
   fd.set('stack', stack)
 
-  const res = await fetch(`${API}/explain/text-form`, { method: 'POST', body: fd })
+  const res = await apiFetch(`${API}/explain/text-form`, { method: 'POST', body: fd })
   if (!res.ok) throw new Error(await readError(res))
   return res.json()
 }
@@ -105,7 +119,7 @@ export async function explainFromImages(
   if (topicHint.trim()) fd.set('topic_hint', topicHint.trim())
   fd.set('stack', stack)
 
-  const res = await fetch(`${API}/explain/images`, { method: 'POST', body: fd })
+  const res = await apiFetch(`${API}/explain/images`, { method: 'POST', body: fd })
   if (!res.ok) throw new Error(await readError(res))
   return res.json()
 }
@@ -126,7 +140,7 @@ export async function explainFromPdf(
   fd.set('ocr_pages', ocrPages ? 'true' : 'false')
   fd.set('ocr_images', ocrImages ? 'true' : 'false')
 
-  const res = await fetch(`${API}/explain/pdf`, { method: 'POST', body: fd })
+  const res = await apiFetch(`${API}/explain/pdf`, { method: 'POST', body: fd })
   if (!res.ok) throw new Error(await readError(res))
   return res.json()
 }
@@ -152,7 +166,7 @@ export async function createVideoJob(body: {
   /** Same as Learn Model stack — LLM + TTS for lesson overview */
   lesson_llm_stack?: ModelStack
 }): Promise<VideoJob> {
-  const res = await fetch(`${API}/video/jobs`, {
+  const res = await apiFetch(`${API}/video/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -162,13 +176,13 @@ export async function createVideoJob(body: {
 }
 
 export async function getVideoJob(id: string): Promise<VideoJob> {
-  const res = await fetch(`${API}/video/jobs/${encodeURIComponent(id)}`)
+  const res = await apiFetch(`${API}/video/jobs/${encodeURIComponent(id)}`)
   if (!res.ok) throw new Error(await readError(res))
   return res.json()
 }
 
 export async function fetchVideoBlob(id: string): Promise<Blob> {
-  const res = await fetch(`${API}/video/jobs/${encodeURIComponent(id)}/file`)
+  const res = await apiFetch(`${API}/video/jobs/${encodeURIComponent(id)}/file`)
   if (!res.ok) throw new Error(await readError(res))
   return res.blob()
 }
@@ -187,7 +201,7 @@ export async function generateIllustration(
   stack: ModelStack,
   source: 'ai' | 'pexels' = 'ai',
 ): Promise<string> {
-  const res = await fetch(`${API}/illustration`, {
+  const res = await apiFetch(`${API}/illustration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, stack, source }),
@@ -206,7 +220,7 @@ export async function generateQuiz(body: {
   question_count: number
   difficulty: 'remedial' | 'standard' | 'advanced'
 }): Promise<QuizResponse> {
-  const res = await fetch(`${API}/quiz/generate`, {
+  const res = await apiFetch(`${API}/quiz/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -237,7 +251,7 @@ export async function generateSlideDeck(body: {
   stack: ModelStack
   slide_count: number
 }): Promise<SlideDeckResponse> {
-  const res = await fetch(`${API}/slides/generate`, {
+  const res = await apiFetch(`${API}/slides/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -247,7 +261,7 @@ export async function generateSlideDeck(body: {
 }
 
 export async function fetchSlideDeckBlob(deckId: string): Promise<Blob> {
-  const res = await fetch(`${API}/slides/${encodeURIComponent(deckId)}/file`)
+  const res = await apiFetch(`${API}/slides/${encodeURIComponent(deckId)}/file`)
   if (!res.ok) throw new Error(await readError(res))
   return res.blob()
 }
@@ -280,7 +294,7 @@ export async function generateSpeech(body: {
   if (body.edge_voice && body.edge_voice.trim()) {
     payload.edge_voice = body.edge_voice.trim()
   }
-  const res = await fetch(`${API}/audio/speech`, {
+  const res = await apiFetch(`${API}/audio/speech`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -290,7 +304,7 @@ export async function generateSpeech(body: {
 }
 
 export async function fetchSpeechBlob(audioId: string): Promise<Blob> {
-  const res = await fetch(`${API}/audio/${encodeURIComponent(audioId)}/file`)
+  const res = await apiFetch(`${API}/audio/${encodeURIComponent(audioId)}/file`)
   if (!res.ok) throw new Error(await readError(res))
   return res.blob()
 }
@@ -310,7 +324,7 @@ export async function generateFlashcards(body: {
   stack: ModelStack
   card_count: number
 }): Promise<FlashcardsResponse> {
-  const res = await fetch(`${API}/flashcards/generate`, {
+  const res = await apiFetch(`${API}/flashcards/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -332,7 +346,7 @@ export async function generateInfographic(body: {
   stack: ModelStack
   style?: string
 }): Promise<InfographicResponse> {
-  const res = await fetch(`${API}/infographic/generate`, {
+  const res = await apiFetch(`${API}/infographic/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -341,14 +355,17 @@ export async function generateInfographic(body: {
   return res.json()
 }
 
-import axios from 'axios';
-
 export async function fetchRelevantImages(text: string): Promise<string[]> {
   try {
-    const response = await axios.post('/api/v1/explain/images', { text });
-    return response.data.images; // Assuming the API returns an array of image URLs
+    const token = getStoredToken()
+    const response = await axios.post(
+      '/api/v1/explain/images',
+      { text },
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    )
+    return response.data.images
   } catch (error) {
-    console.error('Error fetching relevant images:', error);
-    throw error;
+    console.error('Error fetching relevant images:', error)
+    throw error
   }
 }

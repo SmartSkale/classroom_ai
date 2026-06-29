@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.security import hash_password
+from app.db.session import SessionLocal, init_db
+from app.models.user import User, UserRole
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +34,33 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+
+def _bootstrap_admin() -> None:
+    if not settings.bootstrap_admin_email or not settings.bootstrap_admin_password:
+        return
+    db = SessionLocal()
+    try:
+        has_admin = db.query(User).filter(User.role == UserRole.admin).first()
+        if has_admin:
+            return
+        admin = User(
+            email=settings.bootstrap_admin_email.lower(),
+            hashed_password=hash_password(settings.bootstrap_admin_password),
+            full_name=settings.bootstrap_admin_name,
+            role=UserRole.admin,
+        )
+        db.add(admin)
+        db.commit()
+        logger.info("Bootstrap admin account created: %s", settings.bootstrap_admin_email)
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
+    _bootstrap_admin()
 
 
 @app.get("/")
@@ -61,6 +91,12 @@ def root():
         "flashcards": {"generate": "POST /api/v1/flashcards/generate"},
         "infographic": {"generate": "POST /api/v1/infographic/generate"},
         "web_ui": "cd frontend && npm install && npm run dev (proxies /api to this server)",
+        "auth": {
+            "register": "POST /api/v1/auth/register",
+            "login": "POST /api/v1/auth/login (form: username=email, password)",
+            "me": "GET /api/v1/auth/me (Bearer token)",
+            "users": "GET /api/v1/auth/users (admin only)",
+        },
     }
 
 

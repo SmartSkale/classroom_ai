@@ -42,6 +42,19 @@ class Settings(BaseSettings):
     sd_webui_seed: int = -1  # -1 for random, or specific seed for deterministic output
     llm_prompt_generation_retries: int = 3
 
+    # Database (SQLite by default; use PostgreSQL in production)
+    database_url: str = "sqlite:///./classroom_ai.db"
+
+    # JWT auth — set SECRET_KEY in .env for production
+    secret_key: str = "change-me-in-production-use-a-long-random-string"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+
+    # Optional bootstrap admin (created on startup if no admin exists)
+    bootstrap_admin_email: str | None = None
+    bootstrap_admin_password: str | None = None
+    bootstrap_admin_name: str = "Admin"
+
 
 @lru_cache
 def get_settings() -> Settings:
