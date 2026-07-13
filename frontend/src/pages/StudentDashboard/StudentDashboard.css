@@ -1,0 +1,124 @@
+.student-dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.75rem 4rem;
+}
+
+.student-dashboard-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.7rem;
+}
+
+.student-dashboard-subtitle {
+  margin: 0 0 2rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.student-dashboard-section-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.student-dashboard-empty {
+  padding: 2rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--muted);
+}
+
+.student-dashboard-empty p {
+  margin: 0 0 0.5rem;
+}
+
+.student-dashboard-empty-hint {
+  font-size: 0.88rem;
+}
+
+.student-lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.student-lesson-card {
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: var(--btn-transition);
+}
+
+.student-lesson-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow:
+    var(--btn-shadow-sm),
+    0 8px 22px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.student-lesson-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.student-lesson-name {
+  margin: 0;
+  font-size: 1.05rem;
+  flex: 1 1 200px;
+}
+
+.student-lesson-group {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+}
+
+.student-lesson-date {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.student-quiz-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.student-quiz-badge.is-pass {
+  color: #15803d;
+  background: color-mix(in srgb, #15803d 14%, var(--surface));
+}
+
+.student-quiz-badge.is-fail {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+}
+
+.student-lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-lesson-actions .btn {
+  min-height: 2.25rem;
+}
+
+.student-lesson-actions .btn-outline {
+  background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+}

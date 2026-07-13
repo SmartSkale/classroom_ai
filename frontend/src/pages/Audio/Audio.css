@@ -1,0 +1,161 @@
+.audio {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.25rem 1.75rem 4rem;
+}
+
+/* ---------- Breadcrumb ---------- */
+.audio-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.audio-breadcrumb a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.audio-breadcrumb a:hover {
+  color: var(--text);
+}
+
+.audio-breadcrumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- Header ---------- */
+.audio-header {
+  margin-bottom: 1.5rem;
+}
+
+.audio-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.audio-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---------- Settings ---------- */
+.audio-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 460px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.audio-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.audio-control > span:first-child {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.audio-control select {
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.audio-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.audio-generate {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.audio-error-box {
+  padding: 0.85rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.audio-error-box p {
+  margin: 0;
+  color: var(--danger);
+}
+
+/* ---------- Player ---------- */
+.audio-player-card {
+  margin-top: 1.75rem;
+  max-width: 560px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.audio-player-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+}
+
+.audio-notice {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.audio-player {
+  width: 100%;
+  margin-bottom: 1.1rem;
+}
+
+.audio-player-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- Toast ---------- */
+.audio-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.audio-toast-success {
+  background: color-mix(in srgb, var(--success) 22%, var(--surface));
+  border: 1px solid var(--success);
+  color: var(--text);
+}
+
+.audio-toast-error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--text);
+}

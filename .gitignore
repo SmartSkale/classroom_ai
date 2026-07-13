@@ -11,3 +11,8 @@ dist/
 build/
 *$py.class
 frontend-build.log
+uv.lock
+*.toml
+.python-version
+.gitignore
+

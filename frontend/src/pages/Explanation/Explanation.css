@@ -1,0 +1,270 @@
+.explanation {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2.25rem 1.75rem 4rem;
+}
+
+/* ---------- Breadcrumb ---------- */
+.explanation-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+}
+
+.explanation-breadcrumb a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.explanation-breadcrumb a:hover {
+  color: var(--text);
+}
+
+.explanation-breadcrumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- Header ---------- */
+.explanation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.explanation-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.explanation-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.explanation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.explanation-actions .btn {
+  min-height: 2.25rem;
+}
+
+/* ---------- Source input ---------- */
+.explanation-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem;
+  margin-bottom: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.explanation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.explanation-field > span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.explanation-field input,
+.explanation-field textarea {
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.explanation-field textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.explanation-field input:focus,
+.explanation-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---------- Sections ---------- */
+.explanation-section-title {
+  font-size: 1.1rem;
+  margin: 2rem 0 0.85rem;
+}
+
+.explanation-diagram {
+  margin-top: 1.5rem;
+}
+
+.explanation-caption {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.explanation-extra ul {
+  margin: 0;
+  padding-left: 1.4rem;
+  line-height: 1.7;
+}
+
+.explanation-extra li {
+  margin: 0.3rem 0;
+}
+
+/* ---------- Markdown body ---------- */
+.explanation-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.explanation-body h2 {
+  font-size: 1.25rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.explanation-body h3 {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.6rem;
+}
+
+.explanation-body p {
+  margin: 0.75rem 0;
+}
+
+.explanation-body ul,
+.explanation-body ol {
+  margin: 0.75rem 0;
+  padding-left: 1.4rem;
+}
+
+.explanation-body li {
+  margin: 0.35rem 0;
+}
+
+.explanation-body strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.explanation-body blockquote {
+  margin: 1.25rem 0;
+  padding: 0.75rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 8px 8px 0;
+  color: var(--muted);
+}
+
+.explanation-body blockquote p {
+  margin: 0;
+}
+
+.explanation-body-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 2rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* ---------- Footer ---------- */
+.explanation-footer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.explanation-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.explanation-footer-actions .btn {
+  min-height: 2.25rem;
+}
+
+/* ---------- States ---------- */
+.explanation-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.explanation-error p {
+  margin: 0;
+  color: var(--danger);
+}
+
+/* ---------- Toast ---------- */
+.explanation-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  animation: explanation-toast-in 0.2s ease;
+}
+
+.explanation-toast-success {
+  background: color-mix(in srgb, var(--success) 22%, var(--surface));
+  border: 1px solid var(--success);
+  color: var(--text);
+}
+
+.explanation-toast-error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--text);
+}
+
+@keyframes explanation-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

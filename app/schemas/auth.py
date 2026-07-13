@@ -1,8 +1,12 @@
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.models.user import UserRole
+
+_PASSWORD_UPPER = re.compile(r"[A-Z]")
+_PASSWORD_DIGIT = re.compile(r"\d")
 
 
 class UserRegister(BaseModel):
@@ -31,3 +35,44 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=80)
+    email: EmailStr | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "UserUpdate":
+        if self.full_name is None and self.email is None:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class UserUpdateResponse(BaseModel):
+    user: UserResponse
+    access_token: str | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=64)
+    confirm_password: str = Field(min_length=8, max_length=64)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, value: str) -> str:
+        if not _PASSWORD_UPPER.search(value):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not _PASSWORD_DIGIT.search(value):
+            raise ValueError("Password must contain at least one number")
+        return value
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "PasswordChange":
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
+class MessageResponse(BaseModel):
+    message: str

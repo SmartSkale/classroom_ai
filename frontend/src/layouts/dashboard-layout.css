@@ -1,0 +1,231 @@
+.dash {
+  --sidebar-width: 240px;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+  background: var(--bg);
+  transition: grid-template-columns 0.2s ease;
+}
+
+.dash-collapsed {
+  --sidebar-width: 68px;
+}
+
+/* ---------- Sidebar ---------- */
+.dash-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.6rem;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.dash-sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.dash-brand-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.dash-brand-text {
+  white-space: nowrap;
+}
+
+.dash-collapse-btn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 85%, var(--surface) 15%);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: var(--btn-transition);
+  box-shadow: var(--btn-shadow-sm);
+}
+
+.dash-collapse-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  transform: translateY(-1px);
+  box-shadow:
+    var(--btn-shadow-sm),
+    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.dash-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.dash-nav-link,
+.dash-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: var(--btn-transition);
+}
+
+.dash-nav-link:hover,
+.dash-logout:hover {
+  background: color-mix(in srgb, var(--surface-2) 90%, var(--accent) 10%);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--border) 80%, var(--accent) 20%);
+  transform: translateX(2px);
+}
+
+.dash-nav-link.active {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 20%, transparent),
+    color-mix(in srgb, var(--accent) 8%, transparent)
+  );
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    var(--btn-shadow-sm);
+}
+
+.dash-nav-icon {
+  flex: none;
+  width: 22px;
+  text-align: center;
+  font-size: 1.05rem;
+}
+
+.dash-nav-label {
+  white-space: nowrap;
+}
+
+.dash-sidebar-bottom {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dash-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  overflow: hidden;
+}
+
+.dash-user-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.dash-user-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Collapsed state ---------- */
+.dash-collapsed .dash-brand-text,
+.dash-collapsed .dash-nav-label,
+.dash-collapsed .dash-user-name {
+  display: none;
+}
+
+.dash-collapsed .dash-sidebar-top {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dash-collapsed .dash-nav-link,
+.dash-collapsed .dash-logout,
+.dash-collapsed .dash-user {
+  justify-content: center;
+  gap: 0;
+}
+
+/* ---------- Content ---------- */
+.dash-content {
+  min-width: 0;
+  background:
+    radial-gradient(70% 45% at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 55%),
+    var(--bg);
+}
+
+/* ---------- Responsive: sidebar becomes icon-only ---------- */
+@media (max-width: 720px) {
+  .dash {
+    --sidebar-width: 68px;
+  }
+  .dash-brand-text,
+  .dash-nav-label,
+  .dash-user-name {
+    display: none;
+  }
+  .dash-sidebar-top {
+    flex-direction: column;
+  }
+  .dash-nav-link,
+  .dash-logout,
+  .dash-user {
+    justify-content: center;
+    gap: 0;
+  }
+}

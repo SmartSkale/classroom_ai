@@ -1,0 +1,327 @@
+.slides {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.25rem 1.75rem 4rem;
+}
+
+/* ---------- Breadcrumb ---------- */
+.slides-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.slides-breadcrumb a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.slides-breadcrumb a:hover {
+  color: var(--text);
+}
+
+.slides-breadcrumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- Header ---------- */
+.slides-header {
+  margin-bottom: 1.5rem;
+}
+
+.slides-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.slides-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---------- Settings ---------- */
+.slides-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 460px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.slides-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.slides-control > span,
+.slides-control legend {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.slides-control select {
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.slides-include {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.slides-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.92rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.slides-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.slides-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.slides-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.slides-error-box {
+  padding: 0.85rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.slides-error-box p {
+  margin: 0;
+  color: var(--danger);
+}
+
+/* ---------- Preview ---------- */
+.slides-preview-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.slides-preview-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.slides-deck {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.1rem;
+}
+
+.slide-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-height: 220px;
+}
+
+.slide-card-index {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  z-index: 2;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+.slide-card-media {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  height: 96px;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  color: #cbd5e1;
+}
+
+.slide-card-media-icon {
+  font-size: 1.5rem;
+}
+
+.slide-card-media-label {
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 0 0.75rem;
+  opacity: 0.85;
+}
+
+.slide-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.slide-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.slide-card-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.slide-card-notes {
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+}
+
+.slide-card-notes-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.slide-card-notes p {
+  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* ---------- Theme variants (preview only) ---------- */
+.slides-theme-light .slide-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+.slides-theme-light .slide-card-title,
+.slides-theme-light .slide-card-bullets {
+  color: #0f172a;
+}
+.slides-theme-light .slide-card-notes p,
+.slides-theme-light .slide-card-index {
+  color: #475569;
+}
+
+.slides-theme-vibrant .slide-card {
+  background: linear-gradient(160deg, #4338ca, #7c3aed);
+  border-color: transparent;
+  color: #f5f3ff;
+}
+.slides-theme-vibrant .slide-card-title,
+.slides-theme-vibrant .slide-card-bullets {
+  color: #f5f3ff;
+}
+.slides-theme-vibrant .slide-card-media {
+  background: linear-gradient(135deg, #6d28d9, #db2777);
+}
+.slides-theme-vibrant .slide-card-notes p {
+  color: #ddd6fe;
+}
+
+.slides-theme-minimal .slide-card {
+  background: var(--bg);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.slides-theme-minimal .slide-card-media {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+/* ---------- Empty + Toast ---------- */
+.slides-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.slides-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.slides-toast-success {
+  background: color-mix(in srgb, var(--success) 22%, var(--surface));
+  border: 1px solid var(--success);
+  color: var(--text);
+}
+
+.slides-toast-error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--text);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 760px) {
+  .slides-deck {
+    grid-template-columns: 1fr;
+  }
+}

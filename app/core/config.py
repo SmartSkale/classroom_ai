@@ -48,12 +48,21 @@ class Settings(BaseSettings):
     # JWT auth — set SECRET_KEY in .env for production
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    access_token_expire_minutes: int = 60 * 3 #60 * 24 * 7  # 7 days
 
     # Optional bootstrap admin (created on startup if no admin exists)
     bootstrap_admin_email: str | None = None
     bootstrap_admin_password: str | None = None
     bootstrap_admin_name: str = "Admin"
+
+    # SMTP email notifications (optional — leave SMTP_HOST empty to disable)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    email_from: str = "Classroom AI <noreply@example.com>"
+    frontend_url: str = "http://localhost:5173"
 
 
 @lru_cache

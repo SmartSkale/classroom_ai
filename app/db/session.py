@@ -21,6 +21,9 @@ def get_db() -> Generator[Session, None, None]:
 
 #initialize the database-->create the tables
 def init_db() -> None:
+    import app.models.groups  # noqa: F401
+    import app.models.project  # noqa: F401
+    import app.models.quiz_attempt  # noqa: F401
     import app.models.user  # noqa: F401 — register models with metadata
 
     from app.db.base import Base
