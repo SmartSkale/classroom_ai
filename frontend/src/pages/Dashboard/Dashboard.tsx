@@ -8,7 +8,7 @@ import { StudentDashboard } from '../StudentDashboard'
 import { projectService, type Project } from '../../services/projectService'
 import { ROUTES, projectRoute } from '../../utils/constants'
 import { formatRelativeTime } from '../../utils/formatDate'
-import { canCreateContent } from '../../utils/roles'
+import { canCreateContent, getDashboardSubtitle } from '../../utils/roles'
 import type { ProjectType } from '../../utils/projectStorage'
 import './Dashboard.css'
 
@@ -49,9 +49,7 @@ export function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1 className="dashboard-greeting">Welcome back, {firstName}</h1>
-        <p className="dashboard-subtitle">
-          Upload a chapter, generate materials, and download assets for your class.
-        </p>
+        <p className="dashboard-subtitle">{getDashboardSubtitle(user)}</p>
       </header>
 
       <section className="dashboard-section" aria-labelledby="recent-heading">

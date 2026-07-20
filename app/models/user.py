@@ -11,7 +11,24 @@ class UserRole(str, enum.Enum):
     teacher = "teacher"
     student = "student"
     course_creator = "course_creator"
+    parent = "parent"
     admin = "admin"
+
+
+# Upload / Project Library / generation persistence (includes parents).
+CONTENT_ROLES = (
+    UserRole.teacher,
+    UserRole.course_creator,
+    UserRole.parent,
+    UserRole.admin,
+)
+
+# Class groups, assignments, and group quiz scoreboards (excludes parents).
+GROUP_ROLES = (
+    UserRole.teacher,
+    UserRole.course_creator,
+    UserRole.admin,
+)
 
 
 class User(Base):

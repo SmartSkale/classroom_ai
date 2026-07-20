@@ -56,6 +56,15 @@ const TEACHER_STEPS = [
   { step: '6', title: 'Revisit anytime', detail: 'Return to your Project Library to regenerate materials.' },
 ]
 
+const PARENT_STEPS = [
+  { step: '1', title: 'Sign up as a parent', detail: 'Create a free account and choose the parent role.' },
+  { step: '2', title: 'Upload content', detail: 'Add a textbook chapter, PDF, or paste lesson text.' },
+  { step: '3', title: 'Pick outputs', detail: 'Generate explanations, quizzes, slides, flashcards, and more.' },
+  { step: '4', title: 'Review materials', detail: 'Open each output and download for your child to study.' },
+  { step: '5', title: 'Share with your child', detail: 'Use the Share link so your child can open the lesson as a student.' },
+  { step: '6', title: 'Revisit anytime', detail: 'Return to your Project Library to regenerate or review past lessons.' },
+]
+
 const STUDENT_STEPS = [
   { step: '1', title: 'Open a shared link', detail: 'Use the link from your teacher or log in with student credentials.' },
   { step: '2', title: 'See assigned lessons', detail: 'Your dashboard lists every lesson shared with you.' },
@@ -95,6 +104,23 @@ export function Home() {
         <h2 className="home-section-title">The teacher journey</h2>
         <ol className="home-steps">
           {TEACHER_STEPS.map((item) => (
+            <li key={item.step} className="home-step">
+              <span className="home-step-num" aria-hidden="true">
+                {item.step}
+              </span>
+              <div>
+                <h3 className="home-step-title">{item.title}</h3>
+                <p className="home-step-detail">{item.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="home-journey home-journey-parent" id="parent-journey">
+        <h2 className="home-section-title">The parent journey</h2>
+        <ol className="home-steps">
+          {PARENT_STEPS.map((item) => (
             <li key={item.step} className="home-step">
               <span className="home-step-num" aria-hidden="true">
                 {item.step}

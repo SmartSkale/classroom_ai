@@ -69,6 +69,34 @@
   padding: 0.5rem 0.25rem;
 }
 
+.dropzone-files {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.dropzone-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.dropzone-clear {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.dropzone-clear:hover {
+  color: var(--danger);
+}
+
 .dropzone-file-icon {
   font-size: 1.8rem;
 }
@@ -174,6 +202,26 @@
   margin-bottom: 0.85rem;
   font-weight: 650;
   font-size: 1rem;
+}
+
+.upload-language {
+  margin-top: 1.75rem;
+}
+
+.upload-language select {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.upload-language-hint {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .upload-outputs-grid {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ThemeToggle } from '../../components/ThemeToggle'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Usage } from '../../services/projectService'
@@ -276,6 +277,14 @@ export function Profile() {
             {emailMessage.text}
           </p>
         )}
+      </section>
+
+      <section className="profile-section" aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className="profile-section-title">
+          Appearance
+        </h2>
+        <p className="profile-appearance-hint">Choose light or dark mode for the app interface.</p>
+        <ThemeToggle />
       </section>
 
       <section className="profile-section" aria-labelledby="password-heading">

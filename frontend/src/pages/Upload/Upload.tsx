@@ -4,15 +4,19 @@ import { Button } from '../../components/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { useGeneration } from '../../context/generation-context'
 import { canCreateContent } from '../../utils/roles'
+import explanationService from '../../services/explanationService'
 import {
   ACCEPTED_FILE_EXTENSIONS,
   DEFAULT_OUTPUT_TYPES,
   MAX_FILE_BYTES,
+  MAX_IMAGE_COUNT,
   MAX_TEXT_LENGTH,
+  OUTPUT_LANGUAGES,
   OUTPUT_TYPES,
   PROJECT_NAME_MAX,
   PROJECT_NAME_MIN,
   ROUTES,
+  type OutputLanguageId,
   type OutputTypeId,
 } from '../../utils/constants'
 import './Upload.css'
@@ -25,14 +29,40 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function validateFile(file: File): string | null {
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-  if (!ACCEPTED_FILE_EXTENSIONS.includes(ext as (typeof ACCEPTED_FILE_EXTENSIONS)[number])) {
-    return 'Unsupported file type.'
+function isPdfFile(file: File): boolean {
+  return explanationService.isPdfFile(file)
+}
+
+function isImageFile(file: File): boolean {
+  return explanationService.isImageFile(file)
+}
+
+function validateFiles(selected: File[]): string | null {
+  if (selected.length === 0) return null
+
+  const hasPdf = selected.some((f) => isPdfFile(f))
+  const hasImage = selected.some((f) => isImageFile(f))
+
+  if (hasPdf && hasImage) {
+    return 'Upload either one PDF or multiple images, not both.'
   }
-  if (file.size > MAX_FILE_BYTES) {
-    return 'File too large (max 50MB).'
+  if (hasPdf && selected.length > 1) {
+    return 'Only one PDF can be uploaded at a time.'
   }
+  if (hasImage && selected.length > MAX_IMAGE_COUNT) {
+    return `You can upload up to ${MAX_IMAGE_COUNT} images at a time.`
+  }
+
+  for (const file of selected) {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!ACCEPTED_FILE_EXTENSIONS.includes(ext as (typeof ACCEPTED_FILE_EXTENSIONS)[number])) {
+      return `Unsupported file type: ${file.name}`
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      return `File too large (max 50MB): ${file.name}`
+    }
+  }
+
   return null
 }
 
@@ -46,11 +76,12 @@ export function Upload() {
     return <Navigate to={ROUTES.dashboard} replace />
   }
 
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [text, setText] = useState('')
   const [outputs, setOutputs] = useState<OutputTypeId[]>(DEFAULT_OUTPUT_TYPES)
+  const [outputLanguage, setOutputLanguage] = useState<OutputLanguageId>(OUTPUT_LANGUAGES[0].id)
   const [projectName, setProjectName] = useState('')
   const [errors, setErrors] = useState<{
     content?: string
@@ -59,28 +90,62 @@ export function Upload() {
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
-  function acceptFile(selected: File | undefined | null) {
-    if (!selected) return
-    const err = validateFile(selected)
+  const hasPdf = files.some((f) => isPdfFile(f))
+  const hasImages = files.some((f) => isImageFile(f))
+
+  function acceptFiles(incoming: FileList | File[] | null | undefined) {
+    if (!incoming || incoming.length === 0) return
+
+    const selected = Array.from(incoming)
+    const err = validateFiles(selected)
     if (err) {
       setFileError(err)
-      setFile(null)
       return
     }
+
     setFileError(null)
-    setFile(selected)
+
+    if (selected.some((f) => isPdfFile(f))) {
+      setFiles([selected[0]])
+      setErrors((e) => ({ ...e, content: undefined }))
+      return
+    }
+
+    const imageOnly = selected.filter((f) => isImageFile(f))
+    if (imageOnly.length === 0) {
+      setFileError('Unsupported file type.')
+      return
+    }
+
+    const merged = [...files, ...imageOnly]
+    const mergeErr = validateFiles(merged)
+    if (mergeErr) {
+      setFileError(mergeErr)
+      return
+    }
+    setFiles(merged)
     setErrors((e) => ({ ...e, content: undefined }))
   }
 
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFileError(null)
+  }
+
+  function clearFiles() {
+    setFiles([])
+    setFileError(null)
+  }
+
   function onBrowse(e: ChangeEvent<HTMLInputElement>) {
-    acceptFile(e.target.files?.[0])
+    acceptFiles(e.target.files)
     e.target.value = ''
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault()
     setDragOver(false)
-    acceptFile(e.dataTransfer.files?.[0])
+    acceptFiles(e.dataTransfer.files)
   }
 
   function toggleOutput(id: OutputTypeId) {
@@ -96,7 +161,7 @@ export function Upload() {
     const nextErrors: typeof errors = {}
     const trimmedName = projectName.trim()
 
-    if (!file && !text.trim()) {
+    if (files.length === 0 && !text.trim()) {
       nextErrors.content = 'No content provided.'
     }
     if (outputs.length === 0) {
@@ -114,13 +179,12 @@ export function Upload() {
     setErrors({})
     setSubmitting(true)
 
-    // Kick off the real backend generation for every selected output now, then
-    // watch its progress on the Processing screen.
     const jobId = startGeneration({
       name: trimmedName,
       text: text.trim() || undefined,
-      file,
+      files: files.length > 0 ? files : undefined,
       outputs,
+      outputLanguage,
     })
     navigate(ROUTES.processing, { state: { jobId } })
   }
@@ -141,30 +205,49 @@ export function Upload() {
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
         >
-          {file ? (
-            <div className="dropzone-file">
-              <span className="dropzone-file-icon" aria-hidden="true">
-                📄
-              </span>
-              <div className="dropzone-file-info">
-                <strong>{file.name}</strong>
-                <span>{formatBytes(file.size)}</span>
-              </div>
-              <button
-                type="button"
-                className="dropzone-remove"
-                onClick={() => setFile(null)}
-                aria-label="Remove file"
-              >
-                ×
-              </button>
+          {files.length > 0 ? (
+            <div className="dropzone-files">
+              {files.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="dropzone-file">
+                  <span className="dropzone-file-icon" aria-hidden="true">
+                    {isPdfFile(file) ? '📄' : '🖼️'}
+                  </span>
+                  <div className="dropzone-file-info">
+                    <strong>{file.name}</strong>
+                    <span>{formatBytes(file.size)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="dropzone-remove"
+                    onClick={() => removeFile(index)}
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {hasImages && (
+                <div className="dropzone-actions">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => inputRef.current?.click()}
+                  >
+                    Add more images
+                  </Button>
+                  <button type="button" className="dropzone-clear" onClick={clearFiles}>
+                    Clear all
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>
               <span className="dropzone-icon" aria-hidden="true">
                 ⬆️
               </span>
-              <p className="dropzone-text">Drag &amp; drop PDF or image here</p>
+              <p className="dropzone-text">Drag &amp; drop a PDF or images here</p>
               <p className="dropzone-or">or</p>
               <Button
                 type="button"
@@ -174,7 +257,9 @@ export function Upload() {
               >
                 Browse Files
               </Button>
-              <p className="dropzone-hint">Max 50MB · PDF, PNG, JPG, DOCX</p>
+              <p className="dropzone-hint">
+                Max 50MB per file · PDF or multiple PNG/JPG screenshots (up to {MAX_IMAGE_COUNT})
+              </p>
             </>
           )}
 
@@ -182,6 +267,7 @@ export function Upload() {
             ref={inputRef}
             type="file"
             accept={ACCEPT_ATTR}
+            multiple={!hasPdf}
             className="dropzone-input"
             onChange={onBrowse}
           />
@@ -208,6 +294,23 @@ export function Upload() {
           </span>
         </label>
         {errors.content && <p className="upload-error">{errors.content}</p>}
+
+        <label className="upload-field upload-language">
+          <span className="upload-label">Output language</span>
+          <select
+            value={outputLanguage}
+            onChange={(e) => setOutputLanguage(e.target.value as OutputLanguageId)}
+          >
+            {OUTPUT_LANGUAGES.map((lang) => (
+              <option key={lang.id} value={lang.id}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
+          <span className="upload-language-hint">
+            All selected outputs will be generated in this language.
+          </span>
+        </label>
 
         <fieldset className="upload-outputs">
           <legend>Select Output Types</legend>

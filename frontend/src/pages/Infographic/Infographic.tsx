@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { generationService } from '../../services/generationService'
 import {
@@ -43,6 +44,7 @@ export function Infographic() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
+  const outputLanguage = job?.outputLanguage ?? 'english'
   const cached = job?.results.infographic ?? null
 
   const [layout, setLayout] = useState<InfographicLayoutId>(INFOGRAPHIC_LAYOUTS[0].id)
@@ -70,6 +72,7 @@ export function Infographic() {
       const result = await generationService.generateInfographic(projectName, sourceText, {
         layoutPrompt,
         colorPrompt,
+        outputLanguage,
       })
       cacheResults(id, { infographic: result })
       setImage(result.dataUrl)
@@ -193,6 +196,13 @@ export function Infographic() {
           </div>
         </section>
       )}
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="infographic"
+        projectName={projectName}
+        sourceText={sourceText}
+      />
 
       {toast && (
         <div className={`infographic-toast infographic-toast-${toast.type}`} role="status">

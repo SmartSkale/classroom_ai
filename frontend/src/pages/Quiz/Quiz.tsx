@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
 import { quizService, type QuizQuestion, type QuizSettings } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
@@ -9,13 +10,11 @@ import { publishSharedProject } from '../../utils/sharedProjects'
 import { isStudent } from '../../utils/roles'
 import {
   DIFFICULTIES,
-  QUESTION_TYPES,
   QUIZ_COUNT_OPTIONS,
   ROUTES,
   quizResultsRoute,
   quizTakeRoute,
   type Difficulty,
-  type QuestionTypeId,
 } from '../../utils/constants'
 import './Quiz.css'
 
@@ -30,25 +29,24 @@ export function Quiz() {
   const { id = '' } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { jobs } = useGeneration()
+  const { jobs, cacheResults } = useGeneration()
   const { user } = useAuth()
   const job = jobs[id]
   const studentView = isStudent(user)
   const navState = location.state as { name?: string; text?: string } | null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text
+  const outputLanguage = job?.outputLanguage ?? 'english'
 
   // The quiz was generated up front (during upload); show it from the cache.
   const cachedQuiz = job?.results.quiz ?? null
 
   const [count, setCount] = useState(10)
-  const [types, setTypes] = useState<QuestionTypeId[]>(['mcq'])
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
 
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(cachedQuiz)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [typeError, setTypeError] = useState<string | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
 
@@ -64,17 +62,18 @@ export function Quiz() {
       setError(null)
       try {
         const result = await quizService.generateQuiz(
-          { topic: projectName, contextText: sourceText, settings },
+          { topic: projectName, contextText: sourceText, settings, outputLanguage },
           { force },
         )
         setQuestions(result)
+        if (id) cacheResults(id, { quiz: result })
       } catch {
         setError('Quiz generation failed. Check your content and try again.')
       } finally {
         setLoading(false)
       }
     },
-    [projectName, sourceText],
+    [projectName, sourceText, outputLanguage, id, cacheResults],
   )
 
   // No generation on navigating into this page — the quiz is produced up front
@@ -83,19 +82,8 @@ export function Quiz() {
     return () => window.clearTimeout(toastTimer.current)
   }, [])
 
-  function toggleType(typeId: QuestionTypeId) {
-    setTypeError(null)
-    setTypes((prev) =>
-      prev.includes(typeId) ? prev.filter((t) => t !== typeId) : [...prev, typeId],
-    )
-  }
-
   function handleRegenerate() {
-    if (types.length === 0) {
-      setTypeError('Select at least one question type.')
-      return
-    }
-    void generate({ count, types, difficulty }, true)
+    void generate({ count, types: ['mcq'], difficulty }, true)
   }
 
   function handleDownload() {
@@ -155,22 +143,6 @@ export function Quiz() {
             </select>
             <span className="quiz-hint">Up to 15 per generation.</span>
           </label>
-
-          <fieldset className="quiz-control quiz-types">
-            <legend>Question Types</legend>
-            {QUESTION_TYPES.map((t) => (
-              <label key={t.id} className="quiz-checkbox">
-                <input
-                  type="checkbox"
-                  checked={types.includes(t.id)}
-                  onChange={() => toggleType(t.id)}
-                />
-                <span>{t.label}</span>
-              </label>
-            ))}
-            {typeError && <p className="quiz-error">{typeError}</p>}
-            <span className="quiz-hint">The model generates multiple-choice questions.</span>
-          </fieldset>
 
           <label className="quiz-control">
             <span>Difficulty</span>
@@ -236,7 +208,6 @@ export function Quiz() {
                       ))}
                     </ul>
                   )}
-                  {q.type === 'fill' && <p className="quiz-fill-hint">Fill in the blank.</p>}
                 </li>
               ))}
             </ol>
@@ -279,6 +250,14 @@ export function Quiz() {
           )}
         </section>
       </div>
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="quiz"
+        projectName={projectName}
+        sourceText={sourceText}
+        studentView={studentView}
+      />
 
       {toast && (
         <div className={`quiz-toast quiz-toast-${toast.type}`} role="status">

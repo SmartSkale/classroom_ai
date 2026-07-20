@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { generationService } from '../../services/generationService'
 import { ROUTES, slidesRoute, type SlideThemeId } from '../../utils/constants'
@@ -149,6 +150,13 @@ export function SlidesPreview() {
           </article>
         ))}
       </div>
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="slides"
+        projectName={projectName}
+        sourceText={navState?.text}
+      />
 
       {toast && (
         <div className={`slides-toast slides-toast-${toast.type}`} role="status">

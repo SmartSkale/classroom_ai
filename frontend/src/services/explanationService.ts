@@ -1,6 +1,8 @@
 import api from './api'
+import type { OutputLanguageId } from '../utils/constants'
 
-export type OutputLanguage = 'english' | 'hindi' | 'roman_hindi'
+/** @deprecated Prefer OutputLanguageId from utils/constants — kept for existing imports. */
+export type OutputLanguage = OutputLanguageId
 
 export interface VisualBrief {
   title: string
@@ -43,7 +45,7 @@ export interface GenerateExplanationParams {
 }
 
 export interface GenerateExplanationFromFileParams {
-  file: File
+  files: File[]
   topicHint?: string
   stack?: string
   outputLanguage?: OutputLanguage
@@ -101,31 +103,67 @@ function isPdfFile(file: File): boolean {
   return ext === 'pdf' || file.type === 'application/pdf'
 }
 
+function appendExplainFormFields(
+  form: FormData,
+  topicHint: string | undefined,
+  stack: string,
+  outputLanguage: OutputLanguage,
+): void {
+  form.append('output_language', outputLanguage)
+  if (topicHint?.trim()) form.append('topic_hint', topicHint.trim())
+  form.append('stack', stack)
+}
+
 /**
- * Generate an explanation directly from an uploaded file (PDF or image) and
+ * Generate an explanation directly from uploaded files (PDF or image(s)) and
  * return both the explanation and the extracted source text.
  *
  * - PDFs use POST /api/v1/explain/pdf (server extracts text + OCR and echoes it
  *   back in `source_text_used_for_context`).
- * - Images use POST /api/v1/explain/image (vision model). There is no extracted
- *   plain text, so the generated markdown doubles as the grounding context.
+ * - A single image uses POST /api/v1/explain/image (vision model).
+ * - Multiple images use POST /api/v1/explain/images (vision model).
+ *   There is no extracted plain text for images, so the generated markdown
+ *   doubles as the grounding context.
  */
 async function generateExplanationFromFile(
   params: GenerateExplanationFromFileParams,
 ): Promise<ExplanationWithSource> {
-  const { file, topicHint, stack = 'openai', outputLanguage = 'english' } = params
+  const { files, topicHint, stack = 'openai', outputLanguage = 'english' } = params
 
-  if (!isPdfFile(file) && !isImageFile(file)) {
+  if (files.length === 0) {
+    throw new Error('No files provided for extraction.')
+  }
+
+  const hasPdf = files.some((f) => isPdfFile(f))
+  const hasImage = files.some((f) => isImageFile(f))
+
+  if (hasPdf && hasImage) {
+    throw new Error('Upload either one PDF or multiple images, not both.')
+  }
+  if (hasPdf && files.length > 1) {
+    throw new Error('Only one PDF can be uploaded at a time.')
+  }
+  if (!hasPdf && !hasImage) {
     throw new Error('Unsupported file type for extraction. Use a PDF or image.')
   }
 
   const form = new FormData()
-  form.append('file', file)
-  form.append('output_language', outputLanguage)
-  if (topicHint?.trim()) form.append('topic_hint', topicHint.trim())
-  form.append('stack', stack)
+  appendExplainFormFields(form, topicHint, stack, outputLanguage)
 
-  const endpoint = isPdfFile(file) ? '/explain/pdf' : '/explain/image'
+  let endpoint: string
+  if (hasPdf) {
+    form.append('file', files[0])
+    endpoint = '/explain/pdf'
+  } else if (files.length === 1) {
+    form.append('file', files[0])
+    endpoint = '/explain/image'
+  } else {
+    for (const file of files) {
+      form.append('files', file)
+    }
+    endpoint = '/explain/images'
+  }
+
   const { data } = await api.post<ExplainResponse>(endpoint, form)
 
   const explanation = toExplanation(data)

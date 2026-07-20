@@ -1,7 +1,9 @@
 import { Link, NavLink } from 'react-router-dom'
 import { Button } from '../Button'
+import { Logo } from '../Logo'
+import { ThemeToggle } from '../ThemeToggle'
 import { useAuth } from '../../hooks/useAuth'
-import { APP_NAME, ROUTES } from '../../utils/constants'
+import { ROUTES } from '../../utils/constants'
 import './Navbar.css'
 
 const NAV_LINKS = [
@@ -16,10 +18,7 @@ export function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-inner">
-        <Link className="navbar-logo" to={ROUTES.home}>
-          <span className="navbar-logo-mark">CA</span>
-          <span className="navbar-logo-text">{APP_NAME}</span>
-        </Link>
+        <Logo className="navbar-logo" />
 
         <nav className="navbar-links" aria-label="Primary">
           {NAV_LINKS.map((link) => (
@@ -30,6 +29,7 @@ export function Navbar() {
         </nav>
 
         <div className="navbar-actions">
+          <ThemeToggle compact />
           {isAuthenticated ? (
             <>
               <Link className="navbar-greeting" to={ROUTES.dashboard}>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Outlet, NavLink, Link } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { APP_NAME, ROUTES } from '../utils/constants'
-import { canCreateContent } from '../utils/roles'
+import { ROUTES } from '../utils/constants'
+import { canCreateContent, canManageGroups } from '../utils/roles'
+import { ThemeToggle } from '../components/ThemeToggle'
+import { Logo } from '../components/Logo'
 import './dashboard-layout.css'
 
 const SIDEBAR_STATE_KEY = 'classroomai.sidebar.collapsed'
@@ -24,7 +26,11 @@ const STUDENT_NAV = [
 
 export function DashboardLayout() {
   const { user, logout } = useAuth()
-  const navItems = canCreateContent(user) ? TEACHER_NAV : STUDENT_NAV
+  const navItems = canCreateContent(user)
+    ? canManageGroups(user)
+      ? TEACHER_NAV
+      : TEACHER_NAV.filter((item) => item.to !== ROUTES.groups)
+    : STUDENT_NAV
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(SIDEBAR_STATE_KEY) === '1',
   )
@@ -43,10 +49,7 @@ export function DashboardLayout() {
     <div className={`dash ${collapsed ? 'dash-collapsed' : ''}`}>
       <aside className="dash-sidebar" aria-label="Sidebar navigation">
         <div className="dash-sidebar-top">
-          <Link className="dash-brand" to={ROUTES.dashboard} title={APP_NAME}>
-            <span className="dash-brand-mark">CA</span>
-            <span className="dash-brand-text">{APP_NAME}</span>
-          </Link>
+          <Logo className="dash-brand" to={ROUTES.dashboard} compact={collapsed} />
           <button
             className="dash-collapse-btn"
             onClick={toggle}
@@ -75,6 +78,7 @@ export function DashboardLayout() {
         </nav>
 
         <div className="dash-sidebar-bottom">
+          <ThemeToggle />
           <div className="dash-user" title={user?.email}>
             <span className="dash-user-avatar" aria-hidden="true">
               {initials}

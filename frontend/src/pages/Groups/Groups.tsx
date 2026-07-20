@@ -12,7 +12,7 @@ import {
 } from '../../services/groupService'
 import { quizService, type GroupQuizResultRow } from '../../services/quizService'
 import { ROUTES } from '../../utils/constants'
-import { canCreateContent } from '../../utils/roles'
+import { canManageGroups } from '../../utils/roles'
 import { formatRelativeTime } from '../../utils/formatDate'
 import './Groups.css'
 
@@ -159,7 +159,7 @@ export function Groups() {
     }
   }
 
-  if (!canCreateContent(user)) {
+  if (!canManageGroups(user)) {
     return <Navigate to={ROUTES.dashboard} replace />
   }
 

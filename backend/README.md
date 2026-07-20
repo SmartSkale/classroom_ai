@@ -11,7 +11,7 @@ From the **repository root** (not this folder):
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env   # fill OPENAI_API_KEY, SECRET_KEY, DATABASE_URL, etc.
+cp .env.example .env   # fill OPENAI_API_KEY (or Ollama), SECRET_KEY, DATABASE_URL; optional SMTP_*
 python scripts/init_db.py --init   # optional; tables also created on startup
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -22,7 +22,7 @@ OpenAPI docs: `http://127.0.0.1:8000/docs`.
 
 | Model | File | Purpose |
 |-------|------|---------|
-| `User` | `app/models/user.py` | Accounts + `UserRole` (teacher, student, course_creator, admin) |
+| `User` | `app/models/user.py` | Accounts + `UserRole` (teacher, student, course_creator, parent, admin) |
 | `TeacherGroup`, `GroupMember`, `GroupAssignment` | `app/models/groups.py` | Class rosters and lesson assignments with `content_snapshot` JSON |
 | `QuizAttempt` | `app/models/quiz_attempt.py` | Server-persisted quiz submissions and scores |
 
@@ -43,7 +43,7 @@ All routes except register/login are protected with JWT bearer tokens (`app/core
 
 ## High-level flow
 
-1. **Config** (`app/core/config.py`) loads environment (API keys, `DATABASE_URL`, `SECRET_KEY`, CORS, Ollama URL, etc.).
+1. **Config** (`app/core/config.py`) loads environment (API keys, `DATABASE_URL`, `SECRET_KEY`, CORS, Ollama URL, optional `SMTP_*`, etc.).
 
 2. **Router** (`app/api/v1/router.py`) mounts feature routers under prefix `/api/v1`.
 

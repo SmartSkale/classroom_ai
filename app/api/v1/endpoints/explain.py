@@ -90,6 +90,10 @@ async def explain_one_image(
         raise HTTPException(status_code=502, detail=f"LLM request failed: {e!s}") from e
 
 
+_MAX_IMAGES = 20
+_MAX_IMAGES_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
 @router.post("/images", response_model=ExplainResponse)
 async def explain_images(
     files: ChapterScreenshots,
@@ -99,14 +103,33 @@ async def explain_images(
 ) -> ExplainResponse:
     if not files:
         raise HTTPException(status_code=400, detail="At least one image file is required.")
+    if len(files) > _MAX_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many images (max {_MAX_IMAGES}).",
+        )
 
     pairs: list[tuple[str, bytes]] = []
+    total_bytes = 0
     for uf in files:
         if not uf.filename:
             continue
         data = await uf.read()
-        if data:
-            pairs.append((uf.filename, data))
+        if not data:
+            continue
+        mime = explanation_service.guess_image_mime(data[:12])
+        if mime not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported image type for '{uf.filename}'. Use PNG or JPEG.",
+            )
+        total_bytes += len(data)
+        if total_bytes > _MAX_IMAGES_TOTAL_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail="Images are too large in total (max 50 MB).",
+            )
+        pairs.append((uf.filename, data))
 
     if not pairs:
         raise HTTPException(status_code=400, detail="No readable image bytes in upload.")

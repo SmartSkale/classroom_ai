@@ -16,6 +16,7 @@ import { Slides, SlidesPreview } from '../pages/Slides'
 import { Flashcards } from '../pages/Flashcards'
 import { Audio } from '../pages/Audio'
 import { Infographic } from '../pages/Infographic'
+import { Illustration } from '../pages/Illustration'
 import { Explanation } from '../pages/Explanation'
 import { Library } from '../pages/Library'
 import { Groups } from '../pages/Groups'
@@ -80,6 +81,7 @@ export function AppRoutes() {
           <Route path="/projects/:id/flashcards" element={<Flashcards />} />
           <Route path="/projects/:id/audio" element={<Audio />} />
           <Route path="/projects/:id/infographic" element={<Infographic />} />
+          <Route path="/projects/:id/illustration" element={<Illustration />} />
           <Route path="/projects/:id/video" element={<Video />} />
           <Route path="/projects/:id" element={<Explanation />} />
         </Route>

@@ -6,12 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import DbSession, require_roles
 from app.models.project import Project
-from app.models.user import User, UserRole
+from app.models.user import CONTENT_ROLES, User
 from app.schemas.projects import ProjectResponse, ProjectSummaryResponse, ProjectUpsertRequest
 
 router = APIRouter()
-
-TEACHER_ROLES = (UserRole.teacher, UserRole.course_creator, UserRole.admin)
 
 
 def _to_response(row: Project) -> ProjectResponse:
@@ -51,7 +49,7 @@ def _get_owned_project(db: Session, project_id: str, owner_id: int) -> Project:
 @router.get("", response_model=list[ProjectSummaryResponse])
 async def list_projects(
     db: DbSession,
-    current_user: User = Depends(require_roles(*TEACHER_ROLES)),
+    current_user: User = Depends(require_roles(*CONTENT_ROLES)),
 ) -> list[ProjectSummaryResponse]:
     def _list() -> list[ProjectSummaryResponse]:
         rows = (
@@ -68,7 +66,7 @@ async def list_projects(
 @router.get("/jobs", response_model=list[ProjectResponse])
 async def list_project_jobs(
     db: DbSession,
-    current_user: User = Depends(require_roles(*TEACHER_ROLES)),
+    current_user: User = Depends(require_roles(*CONTENT_ROLES)),
 ) -> list[ProjectResponse]:
     """Return full job snapshots for hydrating the teacher generation context."""
 
@@ -88,7 +86,7 @@ async def list_project_jobs(
 async def get_project(
     project_id: str,
     db: DbSession,
-    current_user: User = Depends(require_roles(*TEACHER_ROLES)),
+    current_user: User = Depends(require_roles(*CONTENT_ROLES)),
 ) -> ProjectResponse:
     def _get() -> ProjectResponse:
         return _to_response(_get_owned_project(db, project_id, current_user.id))
@@ -101,7 +99,7 @@ async def upsert_project(
     project_id: str,
     body: ProjectUpsertRequest,
     db: DbSession,
-    current_user: User = Depends(require_roles(*TEACHER_ROLES)),
+    current_user: User = Depends(require_roles(*CONTENT_ROLES)),
 ) -> ProjectResponse:
     def _upsert() -> ProjectResponse:
         row = db.query(Project).filter(Project.id == project_id).first()
@@ -143,7 +141,7 @@ async def upsert_project(
 async def delete_project(
     project_id: str,
     db: DbSession,
-    current_user: User = Depends(require_roles(*TEACHER_ROLES)),
+    current_user: User = Depends(require_roles(*CONTENT_ROLES)),
 ) -> None:
     def _delete() -> None:
         row = _get_owned_project(db, project_id, current_user.id)

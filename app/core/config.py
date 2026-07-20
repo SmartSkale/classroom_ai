@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     # Default image model name for provider (OpenAI image model). Can be overridden in .env
     image_generation_model: str = "gpt-image-2"
     # OpenAI image quality: gpt-image-2 supports low, medium, high.
-    # Default to low for faster turn-around in the Learn flow.
-    image_generation_quality: str = "low"
+    # medium balances classroom-ready detail with reasonable latency.
+    image_generation_quality: str = "medium"
     sd_webui_seed: int = -1  # -1 for random, or specific seed for deterministic output
     llm_prompt_generation_retries: int = 3
 

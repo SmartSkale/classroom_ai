@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { generationService } from '../../services/generationService'
 import { useAuth } from '../../hooks/useAuth'
@@ -179,10 +180,15 @@ export function Video() {
             {downloading ? 'Downloading…' : 'Download MP4'}
           </Button>
         )}
-        <Link to={studentView ? ROUTES.dashboard : ROUTES.library}>
-          <Button variant="outline">{studentView ? 'Back to Dashboard' : 'Back to Library'}</Button>
-        </Link>
       </div>
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="video"
+        projectName={projectName}
+        sourceText={job?.sourceText}
+        studentView={studentView}
+      />
     </div>
   )
 }

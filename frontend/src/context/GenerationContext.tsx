@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { OUTPUT_TYPES, type OutputTypeId } from '../utils/constants'
+import { OUTPUT_LANGUAGES, OUTPUT_TYPES, type OutputLanguageId, type OutputTypeId } from '../utils/constants'
 import {
   clearLegacyProjectStorage,
   loadLegacyStoredJobs,
@@ -21,9 +21,25 @@ import {
 const MIN_AUDIO_CHARS = 20
 const MIN_VIDEO_CHARS = 120
 const PERSIST_DEBOUNCE_MS = 600
+const DEFAULT_OUTPUT_LANGUAGE: OutputLanguageId = 'english'
 
 function outputLabel(id: OutputTypeId): string {
   return OUTPUT_TYPES.find((t) => t.id === id)?.label ?? id
+}
+
+function normalizeOutputLanguage(raw: unknown): OutputLanguageId {
+  if (typeof raw === 'string' && OUTPUT_LANGUAGES.some((l) => l.id === raw)) {
+    return raw as OutputLanguageId
+  }
+  return DEFAULT_OUTPUT_LANGUAGE
+}
+
+/** Ensure older persisted jobs without outputLanguage still work. */
+function normalizeJob(job: GenerationJob): GenerationJob {
+  return {
+    ...job,
+    outputLanguage: normalizeOutputLanguage(job.outputLanguage),
+  }
 }
 
 function buildSteps(outputs: OutputTypeId[]): GenerationStep[] {
@@ -145,7 +161,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         const map: Record<string, GenerationJob> = {}
         for (const project of projects) {
           if (isGenerationJob(project.job)) {
-            map[project.id] = { ...project.job, id: project.id }
+            map[project.id] = normalizeJob({ ...project.job, id: project.id })
           }
         }
 
@@ -155,12 +171,13 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         if (Object.keys(map).length === 0 && legacyJobs.length > 0) {
           await Promise.all(
             legacyJobs.map(async (job) => {
+              const normalized = normalizeJob(job)
               try {
-                await projectService.upsertProject(job)
-                map[job.id] = job
+                await projectService.upsertProject(normalized)
+                map[normalized.id] = normalized
               } catch {
                 // Keep the job in memory even if migration fails for one entry.
-                map[job.id] = job
+                map[normalized.id] = normalized
               }
             }),
           )
@@ -176,7 +193,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           const legacy = loadLegacyStoredJobs()
           const map: Record<string, GenerationJob> = {}
           for (const job of Object.values(legacy)) {
-            if (isGenerationJob(job)) map[job.id] = job
+            if (isGenerationJob(job)) map[job.id] = normalizeJob(job)
           }
           setJobs((prev) => ({ ...map, ...prev }))
         }
@@ -229,7 +246,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   )
 
   const runOutput = useCallback(
-    async (id: string, output: OutputTypeId, name: string, source: string, preExplain?: Explanation) => {
+    async (
+      id: string,
+      output: OutputTypeId,
+      name: string,
+      source: string,
+      outputLanguage: OutputLanguageId,
+      preExplain?: Explanation,
+    ) => {
       setStep(id, output, { status: 'in_progress' })
       try {
         switch (output) {
@@ -239,26 +263,33 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               (await explanationService.generateExplanation({
                 chapterText: source,
                 topicHint: name,
+                outputLanguage,
               }))
             setResult(id, { explanation })
             break
           }
           case 'quiz': {
-            const quiz = await quizService.generateQuiz({
-              topic: name,
-              contextText: source || undefined,
-              settings: { count: 10, types: ['mcq'], difficulty: 'medium' },
-            })
+            const quiz = await quizService.generateQuiz(
+              {
+                topic: name,
+                contextText: source || undefined,
+                settings: { count: 10, types: ['mcq'], difficulty: 'medium' },
+                outputLanguage,
+              },
+              { force: true },
+            )
             setResult(id, { quiz })
             break
           }
           case 'slides': {
-            const slides = await generationService.generateSlides(name, source)
+            const slides = await generationService.generateSlides(name, source, { outputLanguage })
             setResult(id, { slides })
             break
           }
           case 'flashcards': {
-            const flashcards = await generationService.generateFlashcards(name, source)
+            const flashcards = await generationService.generateFlashcards(name, source, {
+              outputLanguage,
+            })
             setResult(id, { flashcards })
             break
           }
@@ -266,17 +297,21 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             if (source.trim().length < MIN_AUDIO_CHARS) {
               throw new Error('Not enough source text to narrate audio.')
             }
-            const audio = await generationService.generateAudio(source)
+            const audio = await generationService.generateAudio(source, { outputLanguage })
             setResult(id, { audio })
             break
           }
           case 'infographic': {
-            const infographic = await generationService.generateInfographic(name, source)
+            const infographic = await generationService.generateInfographic(name, source, {
+              outputLanguage,
+            })
             setResult(id, { infographic })
             break
           }
           case 'illustration': {
-            const illustration = await generationService.generateIllustration(name, source)
+            const illustration = await generationService.generateIllustration(name, source, {
+              outputLanguage,
+            })
             setResult(id, { illustration })
             break
           }
@@ -284,7 +319,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             if (source.trim().length < MIN_VIDEO_CHARS) {
               throw new Error('Need at least 120 characters of source text to generate a video.')
             }
-            const video = await generationService.generateVideo(name, source)
+            const video = await generationService.generateVideo(name, source, { outputLanguage })
             setResult(id, { video })
             break
           }
@@ -302,7 +337,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const run = useCallback(
     async (id: string, input: StartGenerationInput, options?: { skipExtract?: boolean }) => {
       const name = input.name.trim()
-      const file = input.file ?? null
+      const files = input.files ?? []
+      const outputLanguage = normalizeOutputLanguage(input.outputLanguage)
 
       if (!options?.skipExtract) {
         setStep(id, 'extract', { status: 'in_progress' })
@@ -312,13 +348,20 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       let fileExplanation: Explanation | undefined
 
       if (!options?.skipExtract) {
-        const canExtractFile =
-          file && (explanationService.isPdfFile(file) || explanationService.isImageFile(file))
+        const canExtractFiles =
+          files.length > 0 &&
+          files.every(
+            (f) => explanationService.isPdfFile(f) || explanationService.isImageFile(f),
+          )
 
-        if (canExtractFile && file) {
+        if (canExtractFiles) {
           try {
             const { explanation, sourceText: extracted } =
-              await explanationService.generateExplanationFromFile({ file, topicHint: name })
+              await explanationService.generateExplanationFromFile({
+                files,
+                topicHint: name,
+                outputLanguage,
+              })
             fileExplanation = explanation
             if (extracted.trim()) sourceText = extracted.trim()
           } catch (err) {
@@ -342,7 +385,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
       await Promise.allSettled(
         input.outputs.map((output) =>
-          runOutput(id, output, name, sourceText, output === 'explanation' ? fileExplanation : undefined),
+          runOutput(
+            id,
+            output,
+            name,
+            sourceText,
+            outputLanguage,
+            output === 'explanation' ? fileExplanation : undefined,
+          ),
         ),
       )
 
@@ -357,10 +407,12 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const startGeneration = useCallback(
     (input: StartGenerationInput): string => {
       const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const outputLanguage = normalizeOutputLanguage(input.outputLanguage)
       const job: GenerationJob = {
         id,
         name: input.name.trim(),
         outputs: input.outputs,
+        outputLanguage,
         sourceText: input.text?.trim() ?? '',
         steps: buildSteps(input.outputs),
         results: {},
@@ -371,7 +423,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       }
       setJobs((prev) => ({ ...prev, [id]: job }))
       schedulePersist(id)
-      void run(id, input)
+      void run(id, { ...input, outputLanguage })
       return id
     },
     [run, schedulePersist],
@@ -382,8 +434,11 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       const existing = jobsRef.current[id]
       if (!existing) return null
 
+      const outputLanguage = normalizeOutputLanguage(existing.outputLanguage)
+
       updateJob(id, () => ({
         ...existing,
+        outputLanguage,
         steps: buildSteps(existing.outputs),
         results: {},
         progress: 0,
@@ -397,6 +452,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           name: existing.name,
           text: existing.sourceText,
           outputs: existing.outputs,
+          outputLanguage,
         },
         { skipExtract: true },
       )
@@ -419,7 +475,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const importSharedJob = useCallback((job: GenerationJob) => {
     if (!isGenerationJob(job)) return
     // Assignment / share-link snapshots stay in memory only (students are not project owners).
-    setJobs((prev) => ({ ...prev, [job.id]: job }))
+    setJobs((prev) => ({ ...prev, [job.id]: normalizeJob(job) }))
   }, [])
 
   const deleteProject = useCallback(

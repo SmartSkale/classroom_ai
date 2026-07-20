@@ -8,6 +8,7 @@ import {
   ROUTES,
   audioRoute,
   flashcardsRoute,
+  illustrationRoute,
   infographicRoute,
   projectRoute,
   quizRoute,
@@ -36,7 +37,7 @@ const OUTPUT_ROUTE: Record<OutputTypeId, (id: string) => string> = {
   audio: audioRoute,
   video: videoRoute,
   infographic: infographicRoute,
-  illustration: infographicRoute,
+  illustration: illustrationRoute,
 }
 
 function firstReadyRoute(job: GenerationJob): string {

@@ -28,6 +28,28 @@ export const flashcardsRoute = (id: string | number) => `/projects/${id}/flashca
 export const audioRoute = (id: string | number) => `/projects/${id}/audio`
 export const videoRoute = (id: string | number) => `/projects/${id}/video`
 export const infographicRoute = (id: string | number) => `/projects/${id}/infographic`
+export const illustrationRoute = (id: string | number) => `/projects/${id}/illustration`
+
+export function outputRoute(id: string | number, output: OutputTypeId): string {
+  switch (output) {
+    case 'quiz':
+      return quizRoute(id)
+    case 'slides':
+      return slidesRoute(id)
+    case 'flashcards':
+      return flashcardsRoute(id)
+    case 'audio':
+      return audioRoute(id)
+    case 'video':
+      return videoRoute(id)
+    case 'infographic':
+      return infographicRoute(id)
+    case 'illustration':
+      return illustrationRoute(id)
+    default:
+      return projectRoute(id)
+  }
+}
 
 /** Minimum fraction correct to pass a quiz. */
 export const QUIZ_PASS_THRESHOLD = 0.6
@@ -37,11 +59,8 @@ export const QUIZ_COUNT_MIN = 5
 export const QUIZ_COUNT_MAX = 15
 export const QUIZ_COUNT_OPTIONS = [5, 10, 15] as const
 
-export const QUESTION_TYPES = [
-  { id: 'mcq', label: 'MCQ' },
-  { id: 'truefalse', label: 'True/False' },
-  { id: 'fill', label: 'Fill-in-the-blank' },
-] as const
+/** Backend quiz generation currently supports MCQ only. */
+export const QUESTION_TYPES = [{ id: 'mcq', label: 'MCQ' }] as const
 
 export type QuestionTypeId = (typeof QUESTION_TYPES)[number]['id']
 
@@ -94,13 +113,21 @@ export const AUDIO_SPEEDS = [
 
 export type AudioSpeedId = (typeof AUDIO_SPEEDS)[number]['id']
 
-export const AUDIO_LANGUAGES = [
+export const OUTPUT_LANGUAGES = [
   { id: 'english', label: 'English' },
   { id: 'hindi', label: 'Hindi' },
+  { id: 'bengali', label: 'Bengali' },
+  { id: 'marathi', label: 'Marathi' },
+  { id: 'telugu', label: 'Telugu' },
+  { id: 'tamil', label: 'Tamil' },
   { id: 'roman_hindi', label: 'Roman Hindi' },
 ] as const
 
-export type AudioLanguageId = (typeof AUDIO_LANGUAGES)[number]['id']
+export type OutputLanguageId = (typeof OUTPUT_LANGUAGES)[number]['id']
+
+/** @deprecated Prefer OUTPUT_LANGUAGES — kept for Audio page imports. */
+export const AUDIO_LANGUAGES = OUTPUT_LANGUAGES
+export type AudioLanguageId = OutputLanguageId
 
 /**
  * Infographic options. Layout + color are composed into the `style` string the
@@ -127,6 +154,7 @@ export type InfographicColorId = (typeof INFOGRAPHIC_COLORS)[number]['id']
 
 /** Upload constraints (mirror the backend limits). */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB
+export const MAX_IMAGE_COUNT = 20
 export const MAX_TEXT_LENGTH = 10_000
 export const PROJECT_NAME_MIN = 3
 export const PROJECT_NAME_MAX = 80
@@ -151,6 +179,7 @@ export const USER_ROLES = {
   teacher: 'teacher',
   student: 'student',
   courseCreator: 'course_creator',
+  parent: 'parent',
   admin: 'admin',
 } as const
 
@@ -175,6 +204,12 @@ export const SIGNUP_ROLE_OPTIONS = [
     title: "I'm a creator",
     description: 'Build & publish courses',
     icon: '🧩',
+  },
+  {
+    id: 'parent',
+    title: "I'm a parent",
+    description: 'Generate lessons for home learning',
+    icon: '👪',
   },
 ] as const satisfies ReadonlyArray<{
   id: UserRole

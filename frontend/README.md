@@ -46,9 +46,9 @@ src/
 | `/` | Home | Everyone |
 | `/login` | Login / register | Guests |
 | `/dashboard` | Teacher dashboard **or** **My Lessons** (students) | Authenticated |
-| `/library` | Project Library | Teachers / course creators (students redirected) |
-| `/groups` | Class groups & quiz scores | Teachers |
-| `/upload`, `/processing` | Create new lesson | Teachers |
+| `/library` | Project Library | Teachers / course creators / parents (students redirected) |
+| `/groups` | Class groups & quiz scores | Teachers / course creators (not parents) |
+| `/upload`, `/processing` | Create new lesson | Teachers / course creators / parents |
 | `/projects/:id` | Explanation | Teachers + students (student-safe actions) |
 | `/projects/:id/quiz/take` | Take quiz | Students |
 | `/projects/:id/quiz/results` | Quiz results | Students |
@@ -56,7 +56,7 @@ src/
 | `/q/:id` | Shared lesson link | Students (login required) |
 | `/profile` | Profile & password | Authenticated |
 
-Role helpers live in `utils/roles.ts` (`canCreateContent`, etc.).
+Role helpers live in `utils/roles.ts` (`canCreateContent`, `canManageGroups`, etc.).
 
 ## How it fits together
 

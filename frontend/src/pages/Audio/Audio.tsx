@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { generationService } from '../../services/generationService'
 import {
@@ -50,7 +51,9 @@ export function Audio() {
   )
   const [speed, setSpeed] = useState<AudioSpeedId>('normal')
   const [language, setLanguage] = useState<AudioLanguageId>(
-    (cachedAudio?.outputLanguage as AudioLanguageId) ?? AUDIO_LANGUAGES[0].id,
+    (cachedAudio?.outputLanguage as AudioLanguageId) ??
+      job?.outputLanguage ??
+      AUDIO_LANGUAGES[0].id,
   )
 
   const [loading, setLoading] = useState(false)
@@ -299,6 +302,14 @@ export function Audio() {
           </div>
         </section>
       )}
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="audio"
+        projectName={projectName}
+        sourceText={sourceText}
+        studentView={studentView}
+      />
 
       {toast && (
         <div className={`audio-toast audio-toast-${toast.type}`} role="status">

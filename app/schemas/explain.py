@@ -1,13 +1,16 @@
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.language import OutputLanguage
 
 
 class ExplainFromTextRequest(BaseModel):
     chapter_text: str = Field(..., min_length=1, description="Full or partial chapter content.")
-    output_language: Literal["english", "hindi", "roman_hindi"] = Field(
+    output_language: OutputLanguage = Field(
         default="english",
-        description="english | hindi (Devanagari) | roman_hindi (Hindi in Latin letters).",
+        description=(
+            "english | hindi | bengali | marathi | telugu | tamil | "
+            "roman_hindi (Hindi in Latin letters)."
+        ),
     )
     topic_hint: str | None = Field(
         default=None,
@@ -18,7 +21,7 @@ class ExplainFromTextRequest(BaseModel):
 class ExplainFromImagesRequest(BaseModel):
     """Used for JSON-only metadata when images are sent as multipart files in the endpoint."""
 
-    output_language: Literal["english", "hindi", "roman_hindi"] = "english"
+    output_language: OutputLanguage = "english"
     topic_hint: str | None = None
 
 
@@ -64,7 +67,7 @@ class ExplainResponse(BaseModel):
         default=None,
         description="Short legend: what the diagram shows, label meanings, or how to read it (same language as lesson).",
     )
-    output_language_used: Literal["english", "hindi", "roman_hindi"] | None = Field(
+    output_language_used: OutputLanguage | None = Field(
         default=None,
         description="Echo of the language the server applied (verify your selection reached the API).",
     )

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser, DbSession, require_roles
 from app.models.groups import GroupMember, TeacherGroup
 from app.models.quiz_attempt import QuizAttempt
-from app.models.user import User, UserRole
+from app.models.user import GROUP_ROLES, User, UserRole
 from app.schemas.quiz_attempts import (
     GroupQuizResultItem,
     QuizAttemptSubmit,
@@ -21,7 +21,7 @@ from app.services.student_assignments import find_student_assignment
 
 router = APIRouter()
 
-TEACHER_ROLES = (UserRole.teacher, UserRole.course_creator, UserRole.admin)
+TEACHER_ROLES = GROUP_ROLES
 
 
 def _get_latest_attempt(db: Session, student_id: int, project_id: str) -> QuizAttempt | None:

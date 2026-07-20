@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, DbSession, require_roles
 from app.models.groups import GroupAssignment, GroupMember, GroupMemberStatus, TeacherGroup
-from app.models.user import User, UserRole
+from app.models.user import GROUP_ROLES, User
 from app.schemas.groups import (
     GroupAssignmentCreate,
     GroupAssignmentResponse,
@@ -19,7 +19,7 @@ from app.services.email import notify_added_to_group, notify_assignment
 
 router = APIRouter()
 
-TEACHER_ROLES = (UserRole.teacher, UserRole.course_creator, UserRole.admin)
+TEACHER_ROLES = GROUP_ROLES
 
 
 def _group_to_response(group: TeacherGroup, db: Session) -> GroupResponse:

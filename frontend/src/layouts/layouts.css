@@ -69,29 +69,11 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--elevation-shadow-lg);
 }
 
-.auth-brand {
+.auth-brand.logo-wrap {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
   justify-content: center;
   margin-bottom: 1.5rem;
-  text-decoration: none;
-  color: var(--text);
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.auth-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 800;
 }

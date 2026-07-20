@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
 from app.schemas.explain import ExplainResponse, VisualAssetBrief
-from app.schemas.language import OutputLanguage
+from app.schemas.language import OutputLanguage, language_display_name, language_script_rule
 from app.services import illustration_openai, illustration_opensource
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import ImageUrlPart, Message, TextPart
@@ -20,14 +20,7 @@ def _user_language_block(output_language: OutputLanguage, *, closing: bool = Fal
     """Strong, repeated instructions; JSON schema examples were biasing models toward English."""
     if output_language == "english":
         line = "OUTPUT_LANGUAGE=english. All learner-facing strings must be in English."
-    elif output_language == "hindi":
-        line = (
-            "OUTPUT_LANGUAGE=hindi (Devanagari). All learner-facing strings — explanation_markdown, "
-            "simple_examples, visual_brief title/description, suggested_followup_topics, "
-            "video_lesson_prompt — MUST be in Hindi using देवनागरी script. "
-            "Do not use Roman/Latin letters for Hindi words. Translate from the chapter if it is in English."
-        )
-    else:
+    elif output_language == "roman_hindi":
         line = (
             "OUTPUT_LANGUAGE=roman_hindi (Hindi in Latin letters only). "
             "All learner-facing strings — explanation_markdown, simple_examples, "
@@ -38,6 +31,17 @@ def _user_language_block(output_language: OutputLanguage, *, closing: bool = Fal
             "JSON keys stay English; enum tokens kind/suggested_format stay as specified. "
             "Mermaid labels: Roman Hindi or very short English. "
             "Translate the teaching from the chapter even if the chapter is English."
+        )
+    else:
+        name = language_display_name(output_language)
+        line = (
+            f"OUTPUT_LANGUAGE={output_language}. "
+            f"All learner-facing strings — explanation_markdown, simple_examples, "
+            f"visual_brief title/description, suggested_followup_topics, video_lesson_prompt — "
+            f"MUST be in {name}. "
+            f"{language_script_rule(output_language)} "
+            "JSON keys stay English; enum tokens kind/suggested_format stay as specified. "
+            "Translate from the chapter if it is in another language."
         )
     tag = "FINAL CHECK — " if closing else ""
     return f"{tag}{line}\n\n"
@@ -57,7 +61,7 @@ Rules:
   * One ## title line for the lesson topic.
   * ### sections in order (skip any that do not apply): Main ideas; Step-by-step (or reasoning); Real-life / numerical examples; Key terms; Quick recap.
   * Use **bold** for important terms, short bullet lists where helpful, short paragraphs (3–6 sentences).
-  * Do NOT wrap the whole explanation in a single code block. No English mixed in when OUTPUT_LANGUAGE is hindi or roman_hindi.
+  * Do NOT wrap the whole explanation in a single code block. No English mixed in when OUTPUT_LANGUAGE is not english.
 - simple_examples: At least 3 items. Each string is ONE concrete example: include numbers/units when the topic allows, or a specific everyday situation (e.g. "If distance is 2 m and …"). Avoid vague one-liners like "study hard".
 - kind must be one of: diagram, analogy_illustration, timeline, graph_concept, animation_idea, other.
 - suggested_format must be one of: mermaid, animation_storyboard, svg_or_image.
@@ -74,10 +78,13 @@ def _system_prompt(output_language: OutputLanguage, topic_hint: str | None) -> s
     focus = f" Focus the explanation on: {topic_hint}." if topic_hint else ""
     if output_language == "english":
         lang = "Learner-facing text: English only."
-    elif output_language == "hindi":
-        lang = "Learner-facing text: Hindi in Devanagari only (देवनागरी)."
-    else:
+    elif output_language == "roman_hindi":
         lang = "Learner-facing text: Roman Hindi only (Hindi in Latin alphabet, no Devanagari)."
+    else:
+        lang = (
+            f"Learner-facing text: {language_display_name(output_language)} only "
+            f"(follow the OUTPUT_LANGUAGE script rules)."
+        )
     return (
         "You are an expert school teacher. Simplify the chapter for students using clear structure, "
         "realistic examples, and language that matches OUTPUT_LANGUAGE exactly.\n"
@@ -321,10 +328,11 @@ def _brief_image_prompt(brief: dict, topic_hint: str | None, output_language: Ou
     desc = str(brief.get("description", "See chapter.")).strip() or "See chapter."
     topic = f"Lesson topic hint: {topic_hint}. " if topic_hint else ""
     lang_note = ""
-    if output_language == "hindi":
-        lang_note = "The lesson is in Hindi, but the image should use no readable text. "
-    elif output_language == "roman_hindi":
-        lang_note = "The lesson is in Roman Hindi, but the image should use no readable text. "
+    if output_language != "english":
+        lang_note = (
+            f"The lesson is in {language_display_name(output_language)}, "
+            "but the image should use no readable text. "
+        )
     return (
         f"Create one vibrant educational illustration for a school lesson. {topic}{lang_note}"
         f"Subtopic title: {title}. Subtopic description: {desc}. "
@@ -596,7 +604,7 @@ async def explain_from_text(
     return _finalize(_parse_explain_json(raw), output_language)
 
 
-def _guess_mime(header: bytes) -> str:
+def guess_image_mime(header: bytes) -> str:
     """Guess an image MIME type from its leading bytes."""
     if header.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
@@ -631,7 +639,7 @@ async def explain_from_image_bytes(
     for _filename, data in files:
         if not data:
             continue
-        mime = _guess_mime(data[:12])
+        mime = guess_image_mime(data[:12])
         if mime == "application/octet-stream":
             mime = "image/png"
         b64 = base64.standard_b64encode(data).decode("ascii")

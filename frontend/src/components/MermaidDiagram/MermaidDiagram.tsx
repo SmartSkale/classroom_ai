@@ -1,12 +1,14 @@
 import { useEffect, useId, useState } from 'react'
 import mermaid from 'mermaid'
+import { useTheme } from '../../hooks/useTheme'
 import './MermaidDiagram.css'
 
-let initialized = false
-function ensureInit() {
-  if (initialized) return
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' })
-  initialized = true
+let currentTheme: 'dark' | 'default' | null = null
+
+function ensureInit(theme: 'dark' | 'default') {
+  if (currentTheme === theme) return
+  mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'loose' })
+  currentTheme = theme
 }
 
 interface RenderState {
@@ -17,6 +19,8 @@ interface RenderState {
 
 export function MermaidDiagram({ code }: { code: string }) {
   const rawId = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const { theme } = useTheme()
+  const mermaidTheme = theme === 'dark' ? 'dark' : 'default'
   const [state, setState] = useState<RenderState>({ svg: null, failed: false, key: '' })
 
   useEffect(() => {
@@ -33,7 +37,7 @@ export function MermaidDiagram({ code }: { code: string }) {
     }
 
     async function run() {
-      ensureInit()
+      ensureInit(mermaidTheme)
       try {
         // Validate first. `suppressErrors` makes parse return false on invalid
         // input instead of throwing AND prevents mermaid from injecting its
@@ -57,7 +61,7 @@ export function MermaidDiagram({ code }: { code: string }) {
       cancelled = true
       cleanupOrphans()
     }
-  }, [code, rawId])
+  }, [code, rawId, mermaidTheme])
 
   const isCurrent = state.key === code
   if (isCurrent && state.failed) {

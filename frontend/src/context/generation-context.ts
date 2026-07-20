@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { OutputTypeId } from '../utils/constants'
+import type { OutputLanguageId, OutputTypeId } from '../utils/constants'
 import type { Explanation } from '../services/explanationService'
 import type { QuizQuestion } from '../services/quizService'
 import type {
@@ -36,6 +36,8 @@ export interface GenerationJob {
   id: string
   name: string
   outputs: OutputTypeId[]
+  /** Language for all generated outputs (english | hindi | bengali | marathi | telugu | tamil | roman_hindi). */
+  outputLanguage: OutputLanguageId
   /** Source text used to ground every output (typed text or extracted from a file). */
   sourceText: string
   steps: GenerationStep[]
@@ -49,8 +51,9 @@ export interface GenerationJob {
 export interface StartGenerationInput {
   name: string
   text?: string
-  file?: File | null
+  files?: File[]
   outputs: OutputTypeId[]
+  outputLanguage: OutputLanguageId
 }
 
 export interface GenerationContextValue {

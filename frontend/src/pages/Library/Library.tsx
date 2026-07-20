@@ -14,6 +14,7 @@ import {
   ROUTES,
   audioRoute,
   flashcardsRoute,
+  illustrationRoute,
   infographicRoute,
   projectRoute,
   quizRoute,
@@ -22,7 +23,7 @@ import {
   type OutputTypeId,
 } from '../../utils/constants'
 import { formatRelativeTime } from '../../utils/formatDate'
-import { canCreateContent } from '../../utils/roles'
+import { canCreateContent, canManageGroups, getLibrarySubtitle } from '../../utils/roles'
 import type { ProjectType } from '../../utils/projectStorage'
 import './Library.css'
 
@@ -50,8 +51,9 @@ function outputRoute(id: string, output: OutputTypeId): string {
     case 'video':
       return videoRoute(id)
     case 'infographic':
-    case 'illustration':
       return infographicRoute(id)
+    case 'illustration':
+      return illustrationRoute(id)
     default:
       return projectRoute(id)
   }
@@ -112,9 +114,7 @@ export function Library() {
       <header className="library-header">
         <div>
           <h1>Project Library</h1>
-          <p className="library-subtitle">
-            Revisit previous lessons or regenerate materials for your class.
-          </p>
+          <p className="library-subtitle">{getLibrarySubtitle(user)}</p>
         </div>
         <Button variant="primary" onClick={() => navigate(ROUTES.upload)}>
           Upload Content
@@ -202,13 +202,15 @@ export function Library() {
                     size="sm"
                     compact
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAssignProject(project)}
-                  >
-                    Assign to Group
-                  </Button>
+                  {canManageGroups(user) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssignProject(project)}
+                    >
+                      Assign to Group
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

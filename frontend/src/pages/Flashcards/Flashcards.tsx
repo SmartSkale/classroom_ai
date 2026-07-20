@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { generationService } from '../../services/generationService'
 import { downloadFlashcardsPdf } from '../../utils/flashcardPdf'
@@ -43,6 +44,7 @@ export function Flashcards() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
+  const outputLanguage = job?.outputLanguage ?? 'english'
   const deck = job?.results.flashcards ?? null
   const cards = useMemo(() => deck?.cards ?? [], [deck])
 
@@ -130,7 +132,9 @@ export function Flashcards() {
     setGenerating(true)
     setGenError(null)
     try {
-      const result = await generationService.generateFlashcards(projectName, sourceText)
+      const result = await generationService.generateFlashcards(projectName, sourceText, {
+        outputLanguage,
+      })
       cacheResults(id, { flashcards: result })
     } catch {
       setGenError('Could not generate flashcards. Try again.')
@@ -219,6 +223,14 @@ export function Flashcards() {
           </div>
         </>
       )}
+
+      <ProjectOutputNav
+        projectId={id}
+        activeOutput="flashcards"
+        projectName={projectName}
+        sourceText={sourceText}
+        studentView={studentView}
+      />
 
       {toast && (
         <div className={`flashcards-toast flashcards-toast-${toast.type}`} role="status">

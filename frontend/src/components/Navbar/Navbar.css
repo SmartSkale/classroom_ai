@@ -16,28 +16,11 @@
   gap: 1.5rem;
 }
 
-.navbar-logo {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  text-decoration: none;
-  color: var(--text);
-  font-weight: 700;
+.navbar-logo.logo-wrap {
+  flex-shrink: 0;
 }
 
-.navbar-logo-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 800;
-}
-
-.navbar-logo-text {
+.navbar-logo .logo-text {
   font-size: 1.05rem;
 }
 

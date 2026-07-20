@@ -24,7 +24,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import Settings
-from app.schemas.language import OutputLanguage
+from app.schemas.language import OutputLanguage, language_display_name, localization_target_description
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import Message
 from app.services.pexels_stock import fetch_landscape_photo_bytes
@@ -79,9 +79,7 @@ def _extract_json_obj(raw: str) -> dict | None:
 def _lang_name(lang: OutputLanguage) -> str:
     if lang == "english":
         return "English"
-    if lang == "hindi":
-        return "Hindi (Devanagari script)"
-    return "Roman Hindi (Latin letters only)"
+    return localization_target_description(lang)
 
 
 def _script_prompt(
@@ -91,6 +89,7 @@ def _script_prompt(
     output_language: OutputLanguage,
     n_segments: int,
 ) -> str:
+    spoken = language_display_name(output_language)
     return (
         "You are an expert instructional designer. Create a narrated video overview script in the style of "
         "an educational explainer (clear, structured, faithful to the source).\n\n"
@@ -106,7 +105,7 @@ def _script_prompt(
         '{"heading": string, "narration": string, "visual_hint": string}'
         "]}\n"
         "Rules:\n"
-        "- Each narration should be 70–180 words (shorter if the source is short), natural spoken English/Hindi as selected.\n"
+        f"- Each narration should be 70–180 words (shorter if the source is short), natural spoken {spoken}.\n"
         "- `heading` is a short on-screen chapter title (max ~8 words).\n"
         "- `visual_hint` is 3–8 English keywords for a stock/educational background image (not a sentence).\n"
         "- Segments must not repeat; build a coherent arc (intro → core ideas → takeaway).\n"

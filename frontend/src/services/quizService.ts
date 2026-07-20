@@ -4,6 +4,7 @@ import {
   QUIZ_COUNT_MIN,
   QUIZ_PASS_THRESHOLD,
   type Difficulty,
+  type OutputLanguageId,
   type QuestionTypeId,
 } from '../utils/constants'
 
@@ -30,6 +31,7 @@ export interface GenerateQuizParams {
   contextText?: string
   settings: QuizSettings
   stack?: string
+  outputLanguage?: OutputLanguageId
 }
 
 const DIFFICULTY_MAP: Record<Difficulty, 'remedial' | 'standard' | 'advanced'> = {
@@ -85,12 +87,12 @@ function clampCount(n: number): number {
 }
 
 async function requestQuiz(params: GenerateQuizParams): Promise<QuizQuestion[]> {
-  const { topic, contextText, settings, stack = 'openai' } = params
+  const { topic, contextText, settings, stack = 'openai', outputLanguage = 'english' } = params
 
   const payload = {
     topic: (topic || 'Untitled lesson').slice(0, 200),
     context_text: contextText?.trim() ? contextText.trim().slice(0, 30000) : null,
-    output_language: 'english',
+    output_language: outputLanguage,
     stack,
     question_count: clampCount(settings.count),
     difficulty: DIFFICULTY_MAP[settings.difficulty],
@@ -120,6 +122,7 @@ function cacheKey(params: GenerateQuizParams): string {
     difficulty: params.settings.difficulty,
     context: params.contextText?.trim() ?? '',
     stack: params.stack ?? 'openai',
+    outputLanguage: params.outputLanguage ?? 'english',
   })
 }
 

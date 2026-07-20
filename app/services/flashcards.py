@@ -3,17 +3,13 @@ import json
 from pydantic import ValidationError
 
 from app.schemas.flashcards import FlashcardItem, FlashcardsResponse
-from app.schemas.language import OutputLanguage, normalize_output_language
+from app.schemas.language import OutputLanguage, language_script_rule, normalize_output_language
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import Message
 
 
 def _lang_rule(lang: OutputLanguage) -> str:
-    if lang == "english":
-        return "All flashcard text must be in English."
-    if lang == "hindi":
-        return "All flashcard text must be in Hindi (Devanagari script)."
-    return "All flashcard text must be in Roman Hindi (Latin letters only, no Devanagari)."
+    return language_script_rule(lang)
 
 
 def _prompt(*, topic: str, card_count: int, output_language: OutputLanguage, context_text: str | None) -> str:

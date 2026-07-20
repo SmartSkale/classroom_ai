@@ -1,15 +1,15 @@
 import api from './api'
-import { API_BASE_URL, SLIDE_COUNT_MAX, SLIDE_COUNT_MIN } from '../utils/constants'
+import { API_BASE_URL, SLIDE_COUNT_MAX, SLIDE_COUNT_MIN, type OutputLanguageId } from '../utils/constants'
 
 /**
  * Backend wiring for the remaining output types (everything except explanation
  * and quiz, which have their own dedicated services). Each function calls the
  * real backend endpoint and returns a small, UI-friendly result. All requests
- * default to the `openai` stack and English, matching the other services.
+ * default to the `openai` stack and English when language is omitted.
  */
 
 const STACK = 'openai'
-const OUTPUT_LANGUAGE = 'english'
+const DEFAULT_OUTPUT_LANGUAGE: OutputLanguageId = 'english'
 
 /** Clamp + trim source material to the backend `context_text` limit. */
 function asContext(text?: string): string | null {
@@ -55,6 +55,7 @@ interface BackendSlideDeck {
 export interface SlidesOptions {
   /** Requested number of content slides (clamped to the backend's 4–20 range). */
   slideCount?: number
+  outputLanguage?: OutputLanguageId
 }
 
 function clampSlideCount(n: number | undefined): number {
@@ -76,7 +77,7 @@ async function generateSlides(
   const { data } = await api.post<BackendSlideDeck>('/slides/generate', {
     topic: asTopic(topic),
     context_text: asContext(contextText),
-    output_language: OUTPUT_LANGUAGE,
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     stack: STACK,
     slide_count: clampSlideCount(opts.slideCount),
   })
@@ -115,6 +116,7 @@ interface BackendFlashcardsResponse {
 export interface FlashcardsOptions {
   /** Requested number of cards (clamped to the backend's 4–40 range). */
   cardCount?: number
+  outputLanguage?: OutputLanguageId
 }
 
 function clampCardCount(n: number | undefined): number {
@@ -130,7 +132,7 @@ async function generateFlashcards(
   const { data } = await api.post<BackendFlashcardsResponse>('/flashcards/generate', {
     topic: asTopic(topic),
     context_text: asContext(contextText),
-    output_language: OUTPUT_LANGUAGE,
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     stack: STACK,
     card_count: clampCardCount(opts.cardCount),
   })
@@ -170,7 +172,7 @@ interface BackendSpeechResponse {
 async function generateAudio(contextText: string, opts: AudioOptions = {}): Promise<AudioResult> {
   const { data } = await api.post<BackendSpeechResponse>('/audio/speech', {
     context_text: contextText.slice(0, 120000),
-    output_language: opts.outputLanguage ?? OUTPUT_LANGUAGE,
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     stack: STACK,
     openai_voice: opts.voice ?? 'nova',
   })
@@ -183,7 +185,7 @@ async function generateAudio(contextText: string, opts: AudioOptions = {}): Prom
     truncated: data.truncated,
     translationApplied: data.translation_applied,
     voice: opts.voice ?? 'nova',
-    outputLanguage: opts.outputLanguage ?? OUTPUT_LANGUAGE,
+    outputLanguage: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
   }
 }
 
@@ -211,12 +213,13 @@ export interface InfographicOptions {
   layoutPrompt?: string
   /** Prompt phrase describing the color palette. */
   colorPrompt?: string
+  outputLanguage?: OutputLanguageId
 }
 
 function buildInfographicStyle(opts: InfographicOptions): string | undefined {
   const parts = [opts.layoutPrompt, opts.colorPrompt].filter(Boolean)
   if (parts.length === 0) return undefined
-  return `flat vector educational infographic, ${parts.join(', ')}, bold icons, clean arrows, high contrast, minimal readable text`
+  return `flat vector educational infographic, ${parts.join(', ')}, bold icons, clean arrows, high contrast, short readable labels`
 }
 
 async function generateInfographic(
@@ -228,7 +231,7 @@ async function generateInfographic(
   const { data } = await api.post<BackendImageResponse>('/infographic/generate', {
     topic: asTopic(topic),
     context_text: asContext(contextText),
-    output_language: OUTPUT_LANGUAGE,
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     stack: STACK,
     ...(style ? { style } : {}),
   })
@@ -238,14 +241,28 @@ async function generateInfographic(
   }
 }
 
-async function generateIllustration(topic: string, contextText?: string): Promise<ImageResult> {
-  const prompt = [asTopic(topic), asContext(contextText)].filter(Boolean).join('. ').slice(0, 3900)
+export interface IllustrationOptions {
+  outputLanguage?: OutputLanguageId
+}
+
+async function generateIllustration(
+  topic: string,
+  contextText?: string,
+  opts: IllustrationOptions = {},
+): Promise<ImageResult> {
+  // Send topic + context separately so the backend can LLM-rewrite a visual scene
+  // prompt instead of dumping raw lesson/OCR text into the image model.
   const { data } = await api.post<BackendImageResponse>('/illustration', {
-    prompt: prompt || asTopic(topic),
+    topic: asTopic(topic),
+    context_text: asContext(contextText),
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     stack: STACK,
     source: 'ai',
   })
-  return { dataUrl: `data:${data.mime_type};base64,${data.image_base64}` }
+  return {
+    dataUrl: `data:${data.mime_type};base64,${data.image_base64}`,
+    promptUsed: data.image_prompt_used,
+  }
 }
 
 /* -------------------------------- Video --------------------------------- */
@@ -262,17 +279,25 @@ interface BackendVideoJob {
   status: string
 }
 
+export interface VideoOptions {
+  outputLanguage?: OutputLanguageId
+}
+
 /**
  * Kick off a narrated lesson-overview video from the source text. Video
  * rendering is asynchronous on the backend, so this returns the created job
  * (with poll/file URLs) rather than blocking until the MP4 is ready.
  */
-async function generateVideo(topic: string, contextText: string): Promise<VideoResult> {
+async function generateVideo(
+  topic: string,
+  contextText: string,
+  opts: VideoOptions = {},
+): Promise<VideoResult> {
   const { data } = await api.post<BackendVideoJob>('/video/jobs', {
     prompt: asTopic(topic),
     stack: 'lesson_overview',
     lesson_source_text: contextText.slice(0, 32000),
-    output_language: OUTPUT_LANGUAGE,
+    output_language: opts.outputLanguage ?? DEFAULT_OUTPUT_LANGUAGE,
     lesson_llm_stack: STACK,
   })
   return {

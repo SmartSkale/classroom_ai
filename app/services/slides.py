@@ -9,7 +9,7 @@ import uuid
 import anyio
 from pydantic import ValidationError
 
-from app.schemas.language import OutputLanguage
+from app.schemas.language import OutputLanguage, language_script_rule
 from app.schemas.slides import SlideDeckResponse, SlideItem
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import Message
@@ -20,11 +20,7 @@ _decks: dict[str, tuple[bytes, str]] = {}
 
 
 def _lang_rule(lang: OutputLanguage) -> str:
-    if lang == "english":
-        return "All slide text must be in English."
-    if lang == "hindi":
-        return "All slide text must be in Hindi (Devanagari script)."
-    return "All slide text must be in Roman Hindi (Latin letters only, no Devanagari)."
+    return language_script_rule(lang)
 
 
 def _prompt(

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import { Button } from '../../components/Button'
 import { DownloadAllButton } from '../../components/DownloadAllButton'
 import { Loader } from '../../components/Loader'
+import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
 import {
   explanationService,
@@ -12,13 +13,7 @@ import {
 import { useGeneration } from '../../context/generation-context'
 import {
   ROUTES,
-  quizRoute,
   quizTakeRoute,
-  slidesRoute,
-  flashcardsRoute,
-  audioRoute,
-  infographicRoute,
-  videoRoute,
 } from '../../utils/constants'
 import { isStudent } from '../../utils/roles'
 import './Explanation.css'
@@ -46,6 +41,7 @@ export function Explanation() {
   // Content was already generated during upload; show it from the job cache.
   const cachedExplanation = job?.results.explanation ?? null
   const sourceText = job?.sourceText ?? navState?.text ?? ''
+  const outputLanguage = job?.outputLanguage ?? 'english'
 
   const [chapterText, setChapterText] = useState(sourceText)
   const [topicHint, setTopicHint] = useState(job?.name ?? navState?.name ?? '')
@@ -65,27 +61,31 @@ export function Explanation() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
-  const generate = useCallback(async (text: string, topic: string) => {
-    if (!text.trim()) {
-      setError('Paste some chapter text to generate an explanation.')
-      setInputOpen(true)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await explanationService.generateExplanation({
-        chapterText: text,
-        topicHint: topic,
-      })
-      setContent(result)
-      setInputOpen(false)
-    } catch {
-      setError('Explanation generation failed. Check your content and try again.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const generate = useCallback(
+    async (text: string, topic: string) => {
+      if (!text.trim()) {
+        setError('Paste some chapter text to generate an explanation.')
+        setInputOpen(true)
+        return
+      }
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await explanationService.generateExplanation({
+          chapterText: text,
+          topicHint: topic,
+          outputLanguage,
+        })
+        setContent(result)
+        setInputOpen(false)
+      } catch {
+        setError('Explanation generation failed. Check your content and try again.')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [outputLanguage],
+  )
 
   // The explanation is generated up front (during upload), so we only display
   // the cached result here — no generation happens on navigating into this page.
@@ -277,100 +277,13 @@ export function Explanation() {
             )}
           </div>
 
-          <footer className="explanation-footer">
-            <div className="explanation-footer-actions">
-              {studentView && (!job || job.outputs.includes('quiz')) && (
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    navigate(quizTakeRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  Take Quiz →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('quiz')) && !studentView && (
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    navigate(quizRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Quiz →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('slides')) && !studentView && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate(slidesRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Slides →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('flashcards')) && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate(flashcardsRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Flashcards →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('audio')) && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate(audioRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Audio →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('video')) && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate(videoRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Video →
-                </Button>
-              )}
-              {(!job || job.outputs.includes('infographic')) && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate(infographicRoute(id), {
-                      state: { name: projectName, text: chapterText || undefined },
-                    })
-                  }
-                >
-                  View Infographic →
-                </Button>
-              )}
-              <Button
-                variant={studentView ? 'ghost' : 'outline'}
-                onClick={() => navigate(studentView ? ROUTES.dashboard : ROUTES.library)}
-              >
-                {studentView ? 'Back to Dashboard' : 'Project Library'}
-              </Button>
-            </div>
-          </footer>
+          <ProjectOutputNav
+            projectId={id}
+            activeOutput="explanation"
+            projectName={projectName}
+            sourceText={chapterText || undefined}
+            studentView={studentView}
+          />
         </>
       )}
 

@@ -16,13 +16,14 @@ ClassroomAI is an **AI-powered educational content generator** that turns textbo
 
 All from a **single source** – the chapter text, PDF, or images you provide.
 
-The app ships with **user accounts and role-based access** (teacher, student, course creator, admin), a **server-persisted Project Library**, **class groups** for distributing lessons, and **server-persisted quiz results** — so teachers and students can work across devices.
+The app ships with **user accounts and role-based access** (teacher, student, course creator, parent, admin), a **server-persisted Project Library**, **class groups** for distributing lessons, and **server-persisted quiz results** — so teachers and students can work across devices.
 
 ### Who it's for
 
 | Role | What they do in the app |
 |------|-------------------------|
 | **Teacher / course creator** | Upload chapters, generate materials, manage a **Project Library**, create **class groups**, assign lessons to groups, view **quiz scores** |
+| **Parent** | Same as teachers for upload, generation, and **Project Library** — **no** class groups or assign-to-group |
 | **Student** | Log in (or open a shared link), see **My Lessons**, read explanations, take quizzes, review results, study flashcards/audio/video |
 | **Admin** | User management (`GET /auth/users`) |
 
@@ -82,8 +83,9 @@ ClassroomAI uses **two types of AI**:
 ### 0. **Accounts & Access Control (Authentication Module)**
 - **Register / log in**: Email + password accounts with secure password hashing (bcrypt)
 - **JWT tokens**: Login returns a bearer token used to access every content feature
-- **Role-based access**: Four roles — `teacher`, `student`, `course_creator`, and `admin`
+- **Role-based access**: Five roles — `teacher`, `student`, `course_creator`, `parent`, and `admin`
   - Public registration is allowed for non-admin roles
+  - Parents share Project Library / upload access with teachers, but cannot create groups or assign lessons
   - Admin accounts are created via the bootstrap setting or the `init_db` script (never via public registration)
   - Admin-only endpoints (e.g. listing all users) are protected by role checks
 - **Persistent storage**: Users are stored in a SQL database (SQLite by default, PostgreSQL for production)
@@ -111,7 +113,7 @@ Generated lessons are stored in the database (not only in the browser), so teach
 
 **Teacher UI:** `/library`, **Recent Projects** on `/dashboard`, generation progress on `/processing`.
 
-**Key endpoints (teacher / course creator / admin):**
+**Key endpoints (teacher / course creator / parent / admin):**
 - `GET /api/v1/projects` — list project metadata (newest first)
 - `GET /api/v1/projects/jobs` — full job snapshots (hydrates `GenerationContext`)
 - `GET /api/v1/projects/{id}` — one project + job
@@ -129,7 +131,7 @@ Teachers can organize students and push lessons without relying on copy-paste li
 
 **Teacher UI:** `/groups`, **Assign to Group** on library cards, **Quiz Scores** per assignment on the group page.
 
-**Key endpoints (teacher):**
+**Key endpoints (teacher / course creator / admin — not parents):**
 - `GET/POST /api/v1/groups` — list / create groups
 - `GET/PATCH/DELETE /api/v1/groups/{id}` — manage a group
 - `POST /api/v1/groups/{id}/members` — add student emails
@@ -253,127 +255,166 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 
 **Before installing**, you need:
 
-1. **Python 3.9 or higher** installed on your computer
-2. **Git** (for cloning the repository)
-3. **API Keys** (choose at least one):
-   - **OpenAI**: Sign up at https://openai.com and create an API key (costs money per usage)
-   - OR use **Ollama** (free, local LLM)
-4. **Node.js** (for the web interface, optional)
-5. **Optional APIs**:
-   - Pexels API key for stock photos (free)
+1. **Python 3.9+** (3.11+ recommended)
+2. **Node.js 18+** and npm (for the React UI)
+3. **Git** (to clone the repository)
+4. **At least one LLM option**:
+   - **OpenAI** API key ([platform.openai.com](https://platform.openai.com/api-keys)) — cloud, paid
+   - **or Ollama** ([ollama.ai](https://ollama.ai)) — free, runs on your machine
+5. **Optional**:
+   - [Pexels API](https://www.pexels.com/api/) key for stock photos in slides
    - Stable Diffusion WebUI for local image generation
+   - SMTP credentials (e.g. Gmail App Password) for group/assignment email notifications
+
+> **Auth today:** email + password with JWT (not Google Sign-In).  
+> **LLMs today:** `openai` or `ollama` only (Gemini is not wired up yet).
 
 ### Step 1: Clone the Repository
 
 ```bash
-# Open terminal/command prompt and run:
 git clone https://github.com/your-repo/classroom-ai.git
-cd classroom-ai
+cd classroom_ai
 ```
 
-### Step 2: Set Up Python Backend
+### Step 2: Set Up the Python Backend
+
+From the **repository root** (where `requirements.txt` and `app/` live):
 
 ```bash
-# Create a virtual environment (isolates dependencies)
+# Create and activate a virtual environment
 python -m venv .venv
 
-# Activate it:
 # Windows:
 .venv\Scripts\activate
-# macOS/Linux:
+# macOS / Linux:
 source .venv/bin/activate
 
-# Install all Python libraries
+# Install dependencies
 pip install -r requirements.txt
+# (or: uv sync  — if you use the uv.lock / pyproject.toml setup)
 ```
 
-### Step 3: Configure API Keys and Settings
+### Step 3: Configure Environment Variables
 
 ```bash
-# Create a .env file (configuration file)
 cp .env.example .env
+```
 
-# Open .env in a text editor and add your settings:
-# For OpenAI (cloud-based):
-OPENAI_API_KEY=sk-your-actual-key-here
+Edit `.env`. Minimum useful settings:
+
+```env
+# --- LLM (pick one) ---
 LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-actual-key-here
 OPENAI_CHAT_MODEL=gpt-4o-mini
 
-# OR for Ollama (local, free):
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=llama3.2
+# OR local Ollama:
+# LLM_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://localhost:11434
+# OLLAMA_CHAT_MODEL=llama3.2
 
-# Database (SQLite by default; PostgreSQL for production):
+# Allow the Vite dev server to call the API
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+
+# --- Database ---
 DATABASE_URL=sqlite:///./classroom_ai.db
 
-# Authentication (JWT) — use a long random string in production:
+# --- JWT auth ---
 SECRET_KEY=change-me-to-a-long-random-string
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
-# Optional: auto-create the first admin on startup (only if no admin exists):
+# Optional first admin (only created if no admin exists yet):
 # BOOTSTRAP_ADMIN_EMAIL=admin@example.com
 # BOOTSTRAP_ADMIN_PASSWORD=your-secure-password
 # BOOTSTRAP_ADMIN_NAME=Admin
 
-# For stock photos (optional):
-PEXELS_API_KEY=your-pexels-key-here
+# Optional image / stock APIs:
+# PEXELS_API_KEY=
+# IMAGE_GENERATION_MODEL=gpt-image-2
+# IMAGE_GENERATION_QUALITY=medium
+# SD_WEBUI_URL=http://127.0.0.1:7860
 
-# For local image generation (optional):
-SD_WEBUI_URL=http://127.0.0.1:7860
+# Optional SMTP (group / assignment emails) — see Configuration Guide below
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USERNAME=you@gmail.com
+# SMTP_PASSWORD=your-16-char-app-password
+# SMTP_USE_TLS=true
+# EMAIL_FROM=Classroom AI <you@gmail.com>
+# FRONTEND_URL=http://localhost:5173
 ```
 
-**Note**: Never share your `.env` file – it contains secrets!
+**Notes:**
+- Never commit `.env` — it holds secrets.
+- After changing `.env`, **fully restart** uvicorn. `--reload` does not pick up env changes (settings are cached).
 
-### Step 4: Initialize the Database
-
-The database tables are created automatically when the backend starts, but you can also set them up (and create an admin) ahead of time:
+Generate a strong `SECRET_KEY`:
 
 ```bash
-# Just create the tables
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+### Step 4: Initialize the Database (Optional)
+
+Tables are also created automatically when the backend starts. To init early (and create an admin):
+
+```bash
 python scripts/init_db.py --init
 
-# Create the tables AND an admin account
-python scripts/init_db.py --admin-email admin@example.com --admin-password "your-secure-password" --admin-name "Admin"
+python scripts/init_db.py \
+  --admin-email admin@example.com \
+  --admin-password "your-secure-password" \
+  --admin-name "Admin"
 ```
 
-By default this creates a local SQLite file (`classroom_ai.db`) in the project root. Set `DATABASE_URL` to a PostgreSQL URL for production.
+Default DB file: `classroom_ai.db` in the project root. Use a PostgreSQL `DATABASE_URL` for production.
 
-### Step 5: Start the Backend Server
+### Step 5: Start the Backend
 
 ```bash
-# Make sure virtual environment is activated, then:
+# venv still activated, from repo root:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-You should see:
+You should see something like:
+
 ```
 Uvicorn running on http://127.0.0.1:8000
 ```
 
-✅ **Backend is now running!**
+- API docs: http://127.0.0.1:8000/docs  
+- Health/root: http://127.0.0.1:8000  
 
-### Step 6: Set Up Frontend (Optional but Recommended)
+### Step 6: Set Up and Start the Frontend
+
+In a **second** terminal:
 
 ```bash
-# In a new terminal window:
 cd frontend
+cp .env.example .env   # optional; default is fine for local dev
 npm install
 npm run dev
 ```
 
-You should see:
+`frontend/.env` typically only needs:
+
+```env
+# Vite proxies /api → http://127.0.0.1:8000 in development
+VITE_API_BASE_URL=/api/v1
 ```
-Vite server running at http://localhost:5173
-```
 
-✅ **Frontend is now running!**
+You should see Vite at **http://localhost:5173**.
 
-### Step 7: Access the Application
+### Step 7: Verify Local Setup
 
-- **Web Interface**: Open http://localhost:5173 in your browser
-- **API Documentation**: Open http://localhost:8000/docs
-- **Test Backend**: Open http://localhost:8000
+| Check | URL / action |
+|-------|----------------|
+| Frontend | Open http://localhost:5173 |
+| API docs | Open http://127.0.0.1:8000/docs |
+| Register | Create a teacher/student account in the UI |
+| Generate | Upload a short chapter and run a generation |
+
+Keep **both** terminals running (backend on `:8000`, frontend on `:5173`).
 
 ---
 
@@ -388,6 +429,19 @@ Vite server running at http://localhost:5173
 5. **Class Groups** (`/groups`) — create a group, add student emails, view assignments and **Quiz Scores**
 6. **Explanation** (`/projects/:id`) — review lesson, **Edit** source, download materials, jump to quiz/slides/etc.
 
+### Parent workflow (web UI)
+
+Parents have the same content-creation access as teachers, but **cannot** create class groups or assign lessons to groups.
+
+1. **Register / log in** as **Parent**
+2. **Upload** a chapter (`/upload`) — paste text or drop a PDF; select outputs
+3. **Processing** — watch generation progress; project auto-saves to the **Project Library**
+4. **Project Library** (`/library`) — open outputs, download ZIP, regenerate, delete (no **Assign to Group**)
+5. **Share** — use **Share with Students** on a quiz or explanation page so your child can open the lesson
+6. **Explanation** (`/projects/:id`) — review lesson, download materials, jump to quiz/slides/etc.
+
+> Parents do not see **Groups** in the sidebar and are blocked from group/assignment APIs (403).
+
 ### Student workflow (web UI)
 
 1. **Register / log in** as **Student**, or open a teacher **shared link** (`/q/:id`)
@@ -399,7 +453,7 @@ Vite server running at http://localhost:5173
 
 1. **Open** http://localhost:5173
 2. **Register or log in** with your email, password, and role
-3. **Teachers:** go to **Upload** and create a project
+3. **Teachers / parents:** go to **Upload** and create a project
 4. **Students:** open **My Lessons** after your teacher assigns content or shares a link
 5. **Download** slides, audio, or full ZIP from the library or explanation page
 
@@ -544,6 +598,39 @@ To generate images locally without API costs:
    - Bootstrap on startup: set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env`
    - Or run: `python scripts/init_db.py --admin-email admin@example.com --admin-password "your-password"`
 
+Login is **email + password** (JWT). There is no Google Sign-In / OAuth client ID in the app yet — a Google Cloud OAuth client will not affect the login page until that feature is added.
+
+### Configure SMTP Email Notifications (Optional)
+
+When configured, the backend emails students when they are **added to a group** or **assigned a lesson**. Group/assignment APIs still succeed if SMTP is unset (emails are skipped).
+
+1. Choose an SMTP provider (Gmail, Outlook, Mailgun SMTP, etc.).
+2. Add to root `.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=you@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_USE_TLS=true
+EMAIL_FROM=Classroom AI <you@gmail.com>
+FRONTEND_URL=http://localhost:5173
+```
+
+3. **Gmail:** enable [2-Step Verification](https://myaccount.google.com/security), then create an [App Password](https://myaccount.google.com/apppasswords). Put that 16-character password in `SMTP_PASSWORD` (not your normal Gmail password). Using a regular password often fails with `Application-specific password required`.
+4. Restart uvicorn after editing `.env`.
+
+Leave `SMTP_HOST` empty to disable sending.
+
+### Gemini / Google Sign-In (Not Supported Yet)
+
+| Feature | Status |
+|---------|--------|
+| **Gemini API** as `LLM_PROVIDER` | Not implemented — use `openai` or `ollama` |
+| **Google OAuth / Sign-In** (`GOOGLE_CLIENT_ID`, etc.) | Not implemented — register/login with email + password |
+
+If you need either, they must be added in code first (LLM factory + auth endpoints/UI); documenting env vars alone will not enable them.
+
 ---
 
 ## 📁 Project Structure (What's Where)
@@ -589,6 +676,7 @@ classroom_ai/
 │   │   ├── quiz_scoring.py       # Server-side quiz scoring
 │   │   ├── student_assignments.py # Resolve student ↔ group assignments
 │   │   ├── group_memberships.py  # Link invites to user accounts
+│   │   ├── email.py              # SMTP notifications (group / assignment)
 │   │   ├── slides.py             # Creates PowerPoint
 │   │   ├── flashcards.py         # Creates flashcards
 │   │   ├── tts.py                # Text-to-speech
@@ -722,10 +810,17 @@ Key directories:
 ### Problem: "API key error" or "Authentication failed"
 
 **Solution:**
-1. Check your `.env` file exists
+1. Check your `.env` file exists at the **repo root** (not only under `frontend/`)
 2. Verify API key is correct (copy from website again)
 3. If using OpenAI, make sure account has payment method
 4. If using Ollama, make sure it's running: `ollama serve`
+5. Restart uvicorn after any `.env` change
+
+### Problem: SMTP / Gmail “Application-specific password required”
+
+**Solution:**
+- Use a Google [App Password](https://myaccount.google.com/apppasswords), not your normal Gmail password
+- Confirm `SMTP_HOST`, `SMTP_USERNAME`, and `SMTP_PASSWORD` are set, then restart the API
 
 ### Problem: "401 Unauthorized" / "Could not validate credentials"
 
@@ -902,11 +997,11 @@ pip install -r requirements.txt
 - Batch processing for multiple chapters
 - Custom branding for slides
 - LMS integrations (Canvas, Moodle, Google Classroom)
-- Email notifications when content is assigned
+- Google Sign-In (OAuth) and Gemini LLM provider
 - Alembic migrations for production database upgrades
 - Mobile app
 
-**Recently added:** server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group.
+**Recently added:** server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
 
 ---
 
@@ -915,27 +1010,28 @@ pip install -r requirements.txt
 ### Starting the Application
 
 ```bash
-# Setup (first time only)
+# Setup (first time only) — from repo root
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 source .venv/bin/activate        # Mac/Linux
 pip install -r requirements.txt
 cp .env.example .env
+# Edit .env: OPENAI_API_KEY (or Ollama), SECRET_KEY, optional SMTP_*
 
-# Edit .env with your API keys and SECRET_KEY
-
-# Initialize the database (and optionally create an admin)
 python scripts/init_db.py --init
 # python scripts/init_db.py --admin-email admin@example.com --admin-password "your-password"
 
-# Run backend
+# Terminal 1 — backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# In another terminal, run frontend (optional)
+# Terminal 2 — frontend
 cd frontend
+cp .env.example .env            # optional
 npm install
 npm run dev
 ```
+
+Then open http://localhost:5173 (UI) and http://127.0.0.1:8000/docs (API).
 
 ### Stopping the Application
 
@@ -946,12 +1042,13 @@ npm run dev
 ### Checking What's Running
 
 ```bash
-# Check if backend is accessible
-curl http://127.0.0.1:8000/docs
-
-# Check if frontend is accessible
-# Open http://localhost:5173 in browser
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/docs
+# Open http://localhost:5173 in a browser
 ```
+
+### After Editing `.env`
+
+Stop and restart uvicorn (settings are cached; file watch alone is not enough).
 
 ---
 
@@ -980,7 +1077,7 @@ curl http://127.0.0.1:8000/docs
 | **LLM** | Large Language Model – AI that understands and generates text |
 | **JWT** | JSON Web Token – a signed token that proves you're logged in |
 | **Bearer Token** | The login token you send with each request to access protected features |
-| **Role** | A user's permission level (teacher, student, course creator, admin) |
+| **Role** | A user's permission level (teacher, student, course creator, parent, admin) |
 | **ORM / SQLAlchemy** | Tool that lets Python talk to a database without raw SQL |
 | **FastAPI** | Framework for quickly building web services in Python |
 | **React** | Framework for building interactive web pages |

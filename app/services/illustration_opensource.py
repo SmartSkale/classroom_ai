@@ -31,9 +31,12 @@ async def generate_illustration_png_b64(
     
     payload = {
         "prompt": f"{prompt}. Style: {style_suffix}",
-        "negative_prompt": "low quality, blurry, watermark, text overlay, distorted",
-        "steps": 28,
-        "cfg_scale": 7.5,
+        "negative_prompt": (
+            "low quality, blurry, watermark, logo, distorted, deformed, extra limbs, "
+            "gibberish text, illegible letters, cluttered, cropped, noisy"
+        ),
+        "steps": 32,
+        "cfg_scale": 7.0,
         "width": 1024,
         "height": 1024,
         "sampler_name": "DPM++ 2M Karras",
