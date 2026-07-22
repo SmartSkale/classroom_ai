@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
-import { ThemeToggle } from '../../components/ThemeToggle'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Usage } from '../../services/projectService'
 import { userService } from '../../services/userService'
 import type { User } from '../../services/authService'
 import { ROUTES, USER_ROLES } from '../../utils/constants'
-import {
-  getConfirmPasswordError,
-  getEmailError,
-  getFullNameError,
-  getNewPasswordError,
-} from '../../utils/validators'
+import { getApiErrorMessage } from '../../utils/apiErrors'
+import { getRoleLabel } from '../../utils/roles'
+import { getEmailError, getFullNameError } from '../../utils/validators'
 import './Profile.css'
 
 function getInitials(user: User): string {
@@ -24,7 +19,7 @@ function getInitials(user: User): string {
     if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
     return parts[0].slice(0, 2).toUpperCase()
   }
-  return user.email.slice(0, 2).toUpperCase()
+  return user.email.slice(0, 1).toUpperCase()
 }
 
 function formatRole(role: string): string {
@@ -38,38 +33,19 @@ function formatPlan(plan: string): string {
   return plan.charAt(0).toUpperCase() + plan.slice(1)
 }
 
-function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail
-    if (typeof detail === 'string') return detail
-    if (Array.isArray(detail) && detail[0]?.msg) {
-      return String(detail[0].msg).replace(/^Value error,\s*/i, '')
-    }
-  }
-  return fallback
-}
-
 export function Profile() {
   const navigate = useNavigate()
-  const { user, updateProfile, changePassword } = useAuth()
+  const { user, updateProfile } = useAuth()
   const isAdmin = user?.role === USER_ROLES.admin
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
+  const [isEditing, setIsEditing] = useState(false)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-
-  const [nameSaving, setNameSaving] = useState(false)
-  const [emailSaving, setEmailSaving] = useState(false)
-  const [passwordSaving, setPasswordSaving] = useState(false)
-
-  const [nameMessage, setNameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [emailMessage, setEmailMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchUsage = useCallback(() => projectService.getUsage(), [])
   const { data: usage } = useFetch<Usage>(fetchUsage)
@@ -89,8 +65,23 @@ export function Profile() {
   if (!user) return <Loader fullscreen label="Loading profile…" />
 
   const initials = getInitials(user)
-  const nameDirty = fullName.trim() !== (user.full_name ?? '').trim()
-  const emailDirty = email.trim().toLowerCase() !== user.email.toLowerCase()
+  const displayName = user.full_name?.trim() || user.email.split('@')[0]
+  const roleAccountLabel = `${getRoleLabel(user)} ACCOUNT`
+  const isDirty =
+    fullName.trim() !== (user.full_name ?? '').trim() ||
+    email.trim().toLowerCase() !== user.email.toLowerCase()
+
+  function resetForm() {
+    if (!user) return
+    setFullName(user.full_name ?? '')
+    setEmail(user.email)
+    setMessage(null)
+  }
+
+  function handleCancelEdit() {
+    resetForm()
+    setIsEditing(false)
+  }
 
   function handleAvatarChange(file: File | undefined) {
     if (!file) return
@@ -100,81 +91,46 @@ export function Profile() {
     reader.readAsDataURL(file)
   }
 
-  async function handleSaveName() {
-    const error = getFullNameError(fullName)
-    if (error) {
-      setNameMessage({ type: 'error', text: error })
-      return
-    }
-    if (!nameDirty) return
+  async function handleSave() {
+    if (!user) return
 
-    setNameSaving(true)
-    setNameMessage(null)
-    try {
-      await updateProfile({ full_name: fullName.trim() })
-      setNameMessage({ type: 'success', text: 'Profile updated.' })
-    } catch (err) {
-      setNameMessage({
-        type: 'error',
-        text: getApiErrorMessage(err, 'Could not update your name. Try again.'),
-      })
-    } finally {
-      setNameSaving(false)
-    }
-  }
-
-  async function handleSaveEmail() {
-    const error = getEmailError(email)
-    if (error) {
-      setEmailMessage({ type: 'error', text: error })
-      return
-    }
-    if (!emailDirty) return
-
-    setEmailSaving(true)
-    setEmailMessage(null)
-    try {
-      await updateProfile({ email: email.trim() })
-      setEmailMessage({ type: 'success', text: 'Profile updated.' })
-    } catch (err) {
-      setEmailMessage({
-        type: 'error',
-        text: getApiErrorMessage(err, 'Could not update your email. Try again.'),
-      })
-    } finally {
-      setEmailSaving(false)
-    }
-  }
-
-  async function handleChangePassword() {
-    const currentErr = !currentPassword ? 'Current password is required.' : null
-    const newErr = getNewPasswordError(newPassword)
-    const confirmErr = getConfirmPasswordError(confirmPassword, newPassword)
-    const firstError = currentErr ?? newErr ?? confirmErr
-    if (firstError) {
-      setPasswordMessage({ type: 'error', text: firstError })
+    const nameError = getFullNameError(fullName)
+    if (nameError) {
+      setMessage({ type: 'error', text: nameError })
       return
     }
 
-    setPasswordSaving(true)
-    setPasswordMessage(null)
+    const emailError = getEmailError(email)
+    if (emailError) {
+      setMessage({ type: 'error', text: emailError })
+      return
+    }
+
+    if (!isDirty) {
+      setIsEditing(false)
+      return
+    }
+
+    setSaving(true)
+    setMessage(null)
     try {
-      await changePassword({
-        current_password: currentPassword,
-        new_password: newPassword,
-        confirm_password: confirmPassword,
-      })
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setPasswordMessage({ type: 'success', text: 'Password changed successfully.' })
+      const payload: { full_name?: string; email?: string } = {}
+      if (fullName.trim() !== (user.full_name ?? '').trim()) {
+        payload.full_name = fullName.trim()
+      }
+      if (email.trim().toLowerCase() !== user.email.toLowerCase()) {
+        payload.email = email.trim()
+      }
+      await updateProfile(payload)
+      setMessage({ type: 'success', text: 'Profile updated.' })
+      setIsEditing(false)
     } catch (err) {
-      setPasswordMessage({
+      setMessage({
         type: 'error',
-        text: getApiErrorMessage(err, 'Could not change your password. Try again.'),
+        text: getApiErrorMessage(err, 'Could not update your profile. Try again.'),
       })
     } finally {
-      setPasswordSaving(false)
+      setSaving(false)
     }
   }
 
@@ -184,168 +140,122 @@ export function Profile() {
         <h1>My Profile</h1>
       </header>
 
-      <section className="profile-identity" aria-label="Profile summary">
-        <button
-          type="button"
-          className="profile-avatar-btn"
-          onClick={() => avatarInputRef.current?.click()}
-          aria-label="Upload profile photo"
-        >
-          {avatarPreview ? (
-            <img src={avatarPreview} alt="" className="profile-avatar-image" />
+      <section className="profile-info-card" aria-labelledby="profile-info-heading">
+        <div className="profile-info-card-header">
+          <h2 id="profile-info-heading" className="profile-info-card-title">
+            <PersonIcon />
+            Profile Information
+          </h2>
+          {!isEditing ? (
+            <button type="button" className="profile-edit-btn" onClick={() => setIsEditing(true)}>
+              <PencilIcon />
+              Edit
+            </button>
           ) : (
-            <span className="profile-avatar-initials" aria-hidden="true">
-              {initials}
-            </span>
+            <div className="profile-edit-actions">
+              <button type="button" className="profile-edit-btn profile-edit-btn-muted" onClick={handleCancelEdit}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="profile-edit-btn profile-edit-btn-save"
+                onClick={() => void handleSave()}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
           )}
-        </button>
-        <input
-          ref={avatarInputRef}
-          type="file"
-          accept="image/*"
-          className="profile-avatar-input"
-          onChange={(e) => handleAvatarChange(e.target.files?.[0])}
-        />
-        <div className="profile-identity-text">
-          <h2 className="profile-display-name">{user.full_name || user.email}</h2>
-          <p className="profile-email">{user.email}</p>
-          <p className="profile-role">
-            Role: <span className="profile-badge">{formatRole(user.role)}</span>
-          </p>
         </div>
-      </section>
 
-      <section className="profile-section" aria-labelledby="profile-fields-heading">
-        <h2 id="profile-fields-heading" className="profile-section-title">
-          Personal details
-        </h2>
-
-        <div className="profile-field-row">
-          <label className="profile-field" htmlFor="profile-full-name">
-            <span>Full Name</span>
-            <input
-              id="profile-full-name"
-              type="text"
-              value={fullName}
-              onChange={(e) => {
-                setFullName(e.target.value)
-                setNameMessage(null)
-              }}
-              autoComplete="name"
-            />
-          </label>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleSaveName()}
-            disabled={!nameDirty || nameSaving}
-          >
-            {nameSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-        {nameMessage && (
-          <p className={`profile-feedback profile-feedback-${nameMessage.type}`} role="status">
-            {nameMessage.text}
-          </p>
-        )}
-
-        <div className="profile-field-row">
-          <label className="profile-field" htmlFor="profile-email">
-            <span>Email</span>
-            <input
-              id="profile-email"
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                setEmailMessage(null)
-              }}
-              autoComplete="email"
-            />
-          </label>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleSaveEmail()}
-            disabled={!emailDirty || emailSaving}
-          >
-            {emailSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-        {emailMessage && (
-          <p className={`profile-feedback profile-feedback-${emailMessage.type}`} role="status">
-            {emailMessage.text}
-          </p>
-        )}
-      </section>
-
-      <section className="profile-section" aria-labelledby="appearance-heading">
-        <h2 id="appearance-heading" className="profile-section-title">
-          Appearance
-        </h2>
-        <p className="profile-appearance-hint">Choose light or dark mode for the app interface.</p>
-        <ThemeToggle />
-      </section>
-
-      <section className="profile-section" aria-labelledby="password-heading">
-        <h2 id="password-heading" className="profile-section-title">
-          Change Password
-        </h2>
-
-        <label className="profile-field" htmlFor="profile-current-password">
-          <span>Current Password</span>
+        <div className="profile-info-hero">
+          {isEditing ? (
+            <button
+              type="button"
+              className="profile-info-avatar-btn"
+              onClick={() => avatarInputRef.current?.click()}
+              aria-label="Upload profile photo"
+            >
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="" className="profile-info-avatar-image" />
+              ) : (
+                <span className="profile-info-avatar-initials" aria-hidden="true">
+                  {initials}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className="profile-info-avatar" aria-hidden="true">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="" className="profile-info-avatar-image" />
+              ) : (
+                <span className="profile-info-avatar-initials">{initials}</span>
+              )}
+            </div>
+          )}
           <input
-            id="profile-current-password"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => {
-              setCurrentPassword(e.target.value)
-              setPasswordMessage(null)
-            }}
-            autoComplete="current-password"
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="profile-avatar-input"
+            onChange={(e) => handleAvatarChange(e.target.files?.[0])}
           />
-        </label>
-
-        <label className="profile-field" htmlFor="profile-new-password">
-          <span>New Password</span>
-          <input
-            id="profile-new-password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => {
-              setNewPassword(e.target.value)
-              setPasswordMessage(null)
-            }}
-            autoComplete="new-password"
-          />
-        </label>
-
-        <div className="profile-field-row">
-          <label className="profile-field" htmlFor="profile-confirm-password">
-            <span>Confirm</span>
-            <input
-              id="profile-confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value)
-                setPasswordMessage(null)
-              }}
-              autoComplete="new-password"
-            />
-          </label>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => void handleChangePassword()}
-            disabled={passwordSaving}
-          >
-            {passwordSaving ? 'Updating…' : 'Update'}
-          </Button>
+          <div className="profile-info-hero-text">
+            <p className="profile-info-name">{displayName}</p>
+            <p className="profile-info-role">{roleAccountLabel}</p>
+          </div>
         </div>
-        {passwordMessage && (
-          <p className={`profile-feedback profile-feedback-${passwordMessage.type}`} role="status">
-            {passwordMessage.text}
+
+        <div className="profile-info-grid">
+          <div className="profile-info-field">
+            <span className="profile-info-label">Full Name</span>
+            {isEditing ? (
+              <input
+                id="profile-full-name"
+                className="profile-info-input"
+                type="text"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value)
+                  setMessage(null)
+                }}
+                autoComplete="name"
+              />
+            ) : (
+              <span className="profile-info-value">
+                <PersonSmallIcon />
+                {user.full_name?.trim() || 'Not provided'}
+              </span>
+            )}
+          </div>
+
+          <div className="profile-info-field">
+            <span className="profile-info-label">Email</span>
+            {isEditing ? (
+              <input
+                id="profile-email"
+                className="profile-info-input"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setMessage(null)
+                }}
+                autoComplete="email"
+              />
+            ) : (
+              <span className="profile-info-value">
+                <EmailIcon />
+                {user.email}
+              </span>
+            )}
+          </div>
+
+        </div>
+
+        {message && (
+          <p className={`profile-feedback profile-feedback-${message.type}`} role="status">
+            {message.text}
           </p>
         )}
       </section>
@@ -398,6 +308,57 @@ export function Profile() {
         </section>
       )}
     </div>
+  )
+}
+
+function PersonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="profile-info-title-icon" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M6 19c0-3 2.7-5.5 6-5.5s6 2.5 6 5.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="profile-edit-btn-icon" aria-hidden="true">
+      <path
+        d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.12L15.62 4.5a1.5 1.5 0 0 0-2.12 0L3 15v5Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PersonSmallIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="profile-info-value-icon" aria-hidden="true">
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M6 19c0-2.5 2.2-4 6-4s6 1.5 6 4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function EmailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="profile-info-value-icon" aria-hidden="true">
+      <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="m4 8 8 5 8-5" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </svg>
   )
 }
 

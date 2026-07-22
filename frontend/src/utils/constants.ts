@@ -10,6 +10,7 @@ export const ROUTES = {
   login: '/login',
   dashboard: '/dashboard',
   profile: '/profile',
+  settings: '/settings',
   billing: '/billing',
   library: '/library',
   groups: '/groups',

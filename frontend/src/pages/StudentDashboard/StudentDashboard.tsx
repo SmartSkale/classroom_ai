@@ -28,10 +28,6 @@ export interface StudentLesson {
   lastQuizPassed?: boolean
 }
 
-interface StudentDashboardProps {
-  firstName: string
-}
-
 function mergeLessons(
   apiLessons: StudentLesson[],
   localLessons: ReturnType<typeof listStudentAssignments>,
@@ -67,7 +63,7 @@ function mergeLessons(
   )
 }
 
-export function StudentDashboard({ firstName }: StudentDashboardProps) {
+export function StudentDashboard() {
   const navigate = useNavigate()
   const { importSharedJob } = useGeneration()
 
@@ -103,7 +99,6 @@ export function StudentDashboard({ firstName }: StudentDashboardProps) {
   return (
     <div className="student-dashboard">
       <header className="student-dashboard-header">
-        <h1>Welcome, {firstName}</h1>
         <p className="student-dashboard-subtitle">
           Your assigned lessons are below. Read the explanation, take the quiz, then review
           flashcards, audio, or video.

@@ -38,17 +38,15 @@ export function Dashboard() {
   } = useFetch<Project[]>(fetchProjects)
   const { data: usage } = useFetch(fetchUsage)
 
-  const firstName = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
   const isCreator = canCreateContent(user)
 
   if (!isCreator) {
-    return <StudentDashboard firstName={firstName} />
+    return <StudentDashboard />
   }
 
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1 className="dashboard-greeting">Welcome back, {firstName}</h1>
         <p className="dashboard-subtitle">{getDashboardSubtitle(user)}</p>
       </header>
 

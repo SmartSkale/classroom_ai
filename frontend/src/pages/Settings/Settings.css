@@ -1,0 +1,49 @@
+.settings-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.settings-account-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.settings-account-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--accent);
+}
+
+.settings-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, #ef4444 10%, var(--surface));
+  color: #ef4444;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.settings-logout-btn:hover {
+  background: color-mix(in srgb, #ef4444 16%, var(--surface));
+  color: #dc2626;
+}
+
+.settings-logout-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+}

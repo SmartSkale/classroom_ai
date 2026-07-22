@@ -6,6 +6,7 @@ import { Home } from '../pages/Home'
 import { Login } from '../pages/Login'
 import { Dashboard } from '../pages/Dashboard'
 import { Profile } from '../pages/Profile'
+import { Settings } from '../pages/Settings'
 import { Upload } from '../pages/Upload'
 import { Processing } from '../pages/Processing'
 import { Quiz } from '../pages/Quiz'
@@ -42,12 +43,19 @@ function ProtectedRoute() {
   return <Outlet />
 }
 
+/** Logged-in users keep the dashboard sidebar on the home page. */
+function HomeRouteLayout() {
+  const { isAuthenticated, status } = useAuth()
+  if (status === 'loading') return <Loader fullscreen />
+  if (isAuthenticated) return <DashboardLayout />
+  return <MainLayout />
+}
+
 export function AppRoutes() {
   return (
     <Routes>
-      {/* Public marketing site */}
-      <Route element={<MainLayout />}>
-        <Route path={ROUTES.home} element={<Home />} />
+      <Route path={ROUTES.home} element={<HomeRouteLayout />}>
+        <Route index element={<Home />} />
       </Route>
 
       {/* Shared lesson link — login required, then opens assignment */}
@@ -60,6 +68,7 @@ export function AppRoutes() {
         <Route element={<DashboardLayout />}>
           <Route path={ROUTES.dashboard} element={<Dashboard />} />
           <Route path={ROUTES.profile} element={<Profile />} />
+          <Route path={ROUTES.settings} element={<Settings />} />
           <Route
             path={ROUTES.billing}
             element={

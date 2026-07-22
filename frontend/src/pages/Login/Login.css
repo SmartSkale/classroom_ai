@@ -1,6 +1,39 @@
+.login-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 1.25rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, var(--surface));
+}
+
+.login-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  white-space: nowrap;
+}
+
+.login-mode-btn-active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 10%, transparent);
+}
+
 .login-title {
   margin: 0 0 0.35rem;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -14,31 +47,106 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .login-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--muted);
+  gap: 0.45rem;
+  font-size: 0.9rem;
 }
 
-.login-field input,
-.login-field .login-select {
+.login-field > span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 0.85rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.login-input-wrap input {
+  width: 100%;
   font: inherit;
-  padding: 0.6rem 0.7rem;
+  padding: 0.75rem 0.85rem 0.75rem 2.6rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--bg);
   color: var(--text);
 }
 
-.login-field input:focus,
-.login-field .login-select:focus {
+.login-input-wrap-password input {
+  padding-right: 2.6rem;
+}
+
+.login-input {
+  width: 100%;
+  font: inherit;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.login-input-wrap input:focus,
+.login-input:focus {
   border-color: var(--accent);
   outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.login-password-toggle:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.login-forgot-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.35rem;
+}
+
+.login-forgot {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.login-forgot:hover {
+  color: var(--accent-hover);
 }
 
 /* ---------- Role cards ---------- */

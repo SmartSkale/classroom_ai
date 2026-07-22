@@ -35,6 +35,48 @@ export function getDashboardSubtitle(user: User | null | undefined): string {
   return 'Upload a chapter, generate materials, and download assets for your class.'
 }
 
+export function getWorkspaceTitle(user: User | null | undefined): string {
+  switch (user?.role) {
+    case USER_ROLES.student:
+      return 'Learner Workspace'
+    case USER_ROLES.teacher:
+      return 'Teacher Workspace'
+    case USER_ROLES.parent:
+      return 'Parent Workspace'
+    case USER_ROLES.courseCreator:
+      return 'Creator Workspace'
+    case USER_ROLES.admin:
+      return 'Admin Workspace'
+    default:
+      return 'Workspace'
+  }
+}
+
+export function getRoleLabel(user: User | null | undefined): string {
+  switch (user?.role) {
+    case USER_ROLES.student:
+      return 'LEARNER'
+    case USER_ROLES.teacher:
+      return 'TEACHER'
+    case USER_ROLES.parent:
+      return 'PARENT'
+    case USER_ROLES.courseCreator:
+      return 'CREATOR'
+    case USER_ROLES.admin:
+      return 'ADMIN'
+    default:
+      return 'USER'
+  }
+}
+
+export function getUserFirstName(user: User | null | undefined): string {
+  return user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
+}
+
+export function getUserDisplayName(user: User | null | undefined): string {
+  return user?.full_name?.trim() || user?.email?.split('@')[0] || 'User'
+}
+
 /** Role-aware library page subtitle. */
 export function getLibrarySubtitle(user: User | null | undefined): string {
   if (isParent(user)) {
