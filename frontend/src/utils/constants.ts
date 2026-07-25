@@ -8,6 +8,8 @@ export const TOKEN_STORAGE_KEY = 'classroomai.token'
 export const ROUTES = {
   home: '/',
   login: '/login',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
   dashboard: '/dashboard',
   profile: '/profile',
   settings: '/settings',

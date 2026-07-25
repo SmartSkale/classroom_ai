@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { formatRelativeTime } from '../utils/formatDate'
+import { formatRelativeTime, parseApiDate } from '../utils/formatDate'
 
 function tickIntervalMs(value: string | number | Date): number {
-  const date = value instanceof Date ? value : new Date(value)
+  const date = parseApiDate(value)
   if (Number.isNaN(date.getTime())) return 60_000
   const ageSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000))
   if (ageSeconds < 3600) return 30_000

@@ -120,7 +120,7 @@ export function Processing() {
                 {STATUS_TAG[step.status]}
               </span>
               <span className="step-label">{step.label}</span>
-              {step.status === 'in_progress' && <span className="step-eta">working…</span>}
+              {step.status === 'in_progress' && <span className="step-eta">In progress</span>}
               {step.status === 'failed' && <span className="step-eta step-eta-fail">failed</span>}
             </li>
           ))}

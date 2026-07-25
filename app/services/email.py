@@ -65,6 +65,29 @@ def notify_added_to_group(
     send_email(to, subject, html)
 
 
+def notify_password_reset(to: str, *, token: str) -> None:
+    """Email a one-time password reset link."""
+    settings = get_settings()
+    reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
+    subject = "Reset your Classroom AI password"
+    html = f"""
+    <p>Hi,</p>
+    <p>We received a request to reset your Classroom AI password.</p>
+    <p><a href="{escape(reset_url)}">Reset your password</a></p>
+    <p>This link expires in {settings.password_reset_expire_minutes} minutes.
+    If you did not request this, you can ignore this email.</p>
+    <p>— Classroom AI</p>
+    """
+    if not settings.smtp_host:
+        logger.warning(
+            "SMTP_HOST not configured; password reset link for %s: %s",
+            to,
+            reset_url,
+        )
+        return
+    send_email(to, subject, html)
+
+
 def notify_assignment(
     to: str,
     *,

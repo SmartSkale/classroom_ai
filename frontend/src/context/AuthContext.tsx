@@ -13,6 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadSession = useStore((s) => s.loadSession)
   const updateProfile = useStore((s) => s.updateProfile)
   const changePassword = useStore((s) => s.changePassword)
+  const clearError = useStore((s) => s.clearError)
 
   useEffect(() => {
     void loadSession()
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     updateProfile,
     changePassword,
+    clearError,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

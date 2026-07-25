@@ -31,6 +31,12 @@ export interface ChangePasswordPayload {
   confirm_password: string
 }
 
+export interface ResetPasswordPayload {
+  token: string
+  new_password: string
+  confirm_password: string
+}
+
 export interface RegisterPayload {
   email: string
   password: string
@@ -73,5 +79,25 @@ async function changePassword(payload: ChangePasswordPayload): Promise<{ message
   return data
 }
 
-export const authService = { login, register, getCurrentUser, updateProfile, changePassword }
+/** POST /auth/forgot-password — request a password reset email. */
+async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>('/auth/forgot-password', { email })
+  return data
+}
+
+/** POST /auth/reset-password — set a new password using a reset token. */
+async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>('/auth/reset-password', payload)
+  return data
+}
+
+export const authService = {
+  login,
+  register,
+  getCurrentUser,
+  updateProfile,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+}
 export default authService

@@ -14,13 +14,14 @@ import { quizService, type GroupQuizResultRow } from '../../services/quizService
 import { ROUTES } from '../../utils/constants'
 import { canManageGroups } from '../../utils/roles'
 import { formatRelativeTime } from '../../utils/formatDate'
+import { isValidEmail } from '../../utils/validators'
 import './Groups.css'
 
 function parseEmails(raw: string): string[] {
   return raw
     .split(/[\n,;]+/)
     .map((e) => e.trim().toLowerCase())
-    .filter((e) => e.length > 0 && e.includes('@'))
+    .filter((e) => isValidEmail(e))
 }
 
 export function Groups() {

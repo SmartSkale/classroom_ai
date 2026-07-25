@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { useAuth } from '../../hooks/useAuth'
-import { getEmailError, getPasswordError } from '../../utils/validators'
+import { getEmailError, getFullNameError, getNewPasswordError, getPasswordError, normalizeEmail } from '../../utils/validators'
 import {
   ROUTES,
   SIGNUP_ROLE_OPTIONS,
@@ -70,7 +70,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, register, status, error } = useAuth()
+  const { login, register, status, error, clearError } = useAuth()
 
   const requestedMode = (location.state as { mode?: Mode; from?: string } | null)?.mode
   const returnTo = (location.state as { from?: string } | null)?.from
@@ -80,34 +80,50 @@ export function Login() {
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<UserRole>('student')
   const [showPassword, setShowPassword] = useState(false)
-  const [fieldError, setFieldError] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   const submitting = status === 'loading'
   const isLogin = mode === 'login'
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode)
-    setFieldError(null)
+    setEmail('')
+    setPassword('')
+    setEmailError(null)
+    setPasswordError(null)
+    setNameError(null)
+    clearError()
+  }
+
+  function handleEmailBlur() {
+    setEmailError(getEmailError(email))
+  }
+
+  function handlePasswordBlur() {
+    setPasswordError(isLogin ? getPasswordError(password) : getNewPasswordError(password))
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const normalizedEmail = normalizeEmail(email)
     const emailErr = getEmailError(email)
-    const passwordErr = getPasswordError(password)
-    if (emailErr || passwordErr) {
-      setFieldError(emailErr ?? passwordErr)
+    const passwordErr = isLogin ? getPasswordError(password) : getNewPasswordError(password)
+    const fullNameErr = isLogin ? null : getFullNameError(fullName)
+
+    setEmailError(emailErr)
+    setPasswordError(passwordErr)
+    setNameError(fullNameErr)
+
+    if (emailErr || passwordErr || fullNameErr) {
       return
     }
-    if (!isLogin && !fullName.trim()) {
-      setFieldError('Please enter your full name.')
-      return
-    }
-    setFieldError(null)
 
     if (isLogin) {
-      await login(email, password)
+      await login(normalizedEmail, password)
     } else {
-      await register({ email, password, full_name: fullName.trim(), role })
+      await register({ email: normalizedEmail, password, full_name: fullName.trim(), role })
     }
 
     if (localStorage.getItem(TOKEN_STORAGE_KEY)) {
@@ -145,7 +161,7 @@ export function Login() {
           : 'Register for free — no credit card required.'}
       </p>
 
-      <form className="login-form" onSubmit={handleSubmit}>
+      <form className="login-form" onSubmit={handleSubmit} noValidate>
         {!isLogin && (
           <>
             <fieldset className="login-roles">
@@ -181,14 +197,20 @@ export function Login() {
             <label className="login-field">
               <span>Your name</span>
               <input
-                className="login-input"
+                className={`login-input ${nameError ? 'login-input-invalid' : ''}`}
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value)
+                  if (nameError) setNameError(getFullNameError(e.target.value))
+                }}
+                onBlur={() => setNameError(getFullNameError(fullName))}
                 placeholder="Jane Doe"
                 autoComplete="name"
+                aria-invalid={Boolean(nameError)}
                 required
               />
+              {nameError && <p className="login-field-error">{nameError}</p>}
             </label>
           </>
         )}
@@ -199,13 +221,20 @@ export function Login() {
             <MailIcon />
             <input
               type="email"
+              className={emailError ? 'login-input-invalid' : ''}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (emailError) setEmailError(getEmailError(e.target.value))
+              }}
+              onBlur={handleEmailBlur}
               placeholder="you@example.com"
               autoComplete="email"
+              aria-invalid={Boolean(emailError)}
               required
             />
           </div>
+          {emailError && <p className="login-field-error">{emailError}</p>}
         </label>
 
         <label className="login-field">
@@ -214,10 +243,20 @@ export function Login() {
             <LockIcon />
             <input
               type={showPassword ? 'text' : 'password'}
+              className={passwordError ? 'login-input-invalid' : ''}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (passwordError) {
+                  setPasswordError(
+                    isLogin ? getPasswordError(e.target.value) : getNewPasswordError(e.target.value),
+                  )
+                }
+              }}
+              onBlur={handlePasswordBlur}
               placeholder="Your password"
               autoComplete={isLogin ? 'current-password' : 'new-password'}
+              aria-invalid={Boolean(passwordError)}
               required
             />
             <button
@@ -229,17 +268,22 @@ export function Login() {
               <EyeIcon hidden={!showPassword} />
             </button>
           </div>
+          {passwordError && <p className="login-field-error">{passwordError}</p>}
         </label>
 
         {isLogin && (
           <div className="login-forgot-wrap">
-            <button type="button" className="login-forgot">
+            <button
+              type="button"
+              className="login-forgot"
+              onClick={() => navigate(ROUTES.forgotPassword)}
+            >
               Forgot password?
             </button>
           </div>
         )}
 
-        {(fieldError || error) && <p className="login-error">{fieldError ?? error}</p>}
+        {error && <p className="login-error">{error}</p>}
 
         <Button type="submit" variant="primary" fullWidth disabled={submitting}>
           {submitting ? 'Please wait…' : isLogin ? 'Log in' : 'Sign up'}

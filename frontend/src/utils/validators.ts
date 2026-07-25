@@ -1,9 +1,39 @@
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_LOCAL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/
+const EMAIL_DOMAIN_RE =
+  /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
 const PASSWORD_UPPER_RE = /[A-Z]/
 const PASSWORD_DIGIT_RE = /\d/
 
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 export function isValidEmail(value: string): boolean {
-  return EMAIL_RE.test(value.trim())
+  const email = value.trim()
+  if (!email || email.length > 254) return false
+
+  const atIndex = email.lastIndexOf('@')
+  if (atIndex <= 0 || atIndex > 64) return false
+
+  const local = email.slice(0, atIndex)
+  const domain = email.slice(atIndex + 1)
+
+  if (!local || !domain || domain.length > 253) return false
+  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false
+  if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false
+  if (!EMAIL_LOCAL_RE.test(local)) return false
+  if (!EMAIL_DOMAIN_RE.test(domain)) return false
+
+  const labels = domain.split('.')
+  if (labels.some((label) => label.length < 2)) return false
+
+  const tld = labels[labels.length - 1]
+  if (!/^[a-zA-Z]+$/.test(tld)) return false
+  // Reject partial domains like user@gmail.co; allow multi-part domains like bbc.co.uk.
+  if (tld.length < 3 && labels.length < 3) return false
+  if (tld.length < 2) return false
+
+  return true
 }
 
 export function isValidPassword(value: string): boolean {
@@ -20,7 +50,7 @@ export function isValidNewPassword(value: string): boolean {
 
 export function getEmailError(value: string): string | null {
   if (!value.trim()) return 'Email is required.'
-  if (!isValidEmail(value)) return 'Enter a valid email address.'
+  if (!isValidEmail(value)) return 'Enter a valid email address (e.g. you@example.com).'
   return null
 }
 

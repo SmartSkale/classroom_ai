@@ -21,6 +21,7 @@ export interface AuthSlice {
   updateProfile: (payload: UserUpdatePayload) => Promise<string | null>
   changePassword: (payload: ChangePasswordPayload) => Promise<void>
   setUser: (user: User) => void
+  clearError: () => void
 }
 
 function persistToken(token: string | null) {
@@ -95,4 +96,6 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
   },
 
   setUser: (user) => set({ user }),
+
+  clearError: () => set({ error: null, status: 'idle' }),
 })

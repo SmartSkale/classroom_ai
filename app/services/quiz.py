@@ -36,6 +36,10 @@ def _stem_focus(sentence: str, *, max_len: int = 72) -> str:
     return (cut or s[: max_len - 1]).rstrip(",.;:") + "…"
 
 
+def _normalize_quotes(text: str) -> str:
+    return text.replace("\u00ab", '"').replace("\u00bb", '"')
+
+
 def _question_dedupe_key(question: str) -> str:
     """Strip leading [n] markers so near-identical fallback stems collide."""
     q = " ".join(question.lower().split())
@@ -55,48 +59,48 @@ def _fallback_stems(
     if lang == "hindi":
         if focus_bit:
             stems = (
-                f"[{n}] पाठ के अनुसार, «{focus_bit}» से सबसे सही कथन कौन-सा है?",
-                f"[{n}] दिए गए पाठ में «{focus_bit}» के बारे में कौन-सी पंक्ति सही है?",
-                f"[{n}] केवल पाठ के आधार पर, «{focus_bit}» के लिए सही विकल्प चुनें।",
-                f"[{n}] «{focus_bit}» के संदर्भ में पाठ क्या कहता है?",
+                f"[{n}] पाठ के अनुसार, \"{focus_bit}\" से सबसे सही कथन कौन-सा है?",
+                f"[{n}] दिए गए पाठ में \"{focus_bit}\" के बारे में कौन-सी पंक्ति सही है?",
+                f"[{n}] केवल पाठ के आधार पर, \"{focus_bit}\" के लिए सही विकल्प चुनें।",
+                f"[{n}] \"{focus_bit}\" के संदर्भ में पाठ क्या कहता है?",
             )
         else:
             stems = (
-                f"[{n}] पाठ के अनुसार, «{tlab}» से सबसे अच्छी तरह मेल खाने वाला कथन कौन-सा है?",
-                f"[{n}] दिए गए पाठ में «{tlab}» से सीधे संबंधित पंक्ति कौन-सी है?",
-                f"[{n}] केवल पाठ के आधार पर, «{tlab}» से सबसे सही विकल्प कौन-सा है?",
-                f"[{n}] पाठ में कई विचार हैं। «{tlab}» से सबसे अधिक संबंधित विकल्प कौन-सा है?",
+                f"[{n}] पाठ के अनुसार, \"{tlab}\" से सबसे अच्छी तरह मेल खाने वाला कथन कौन-सा है?",
+                f"[{n}] दिए गए पाठ में \"{tlab}\" से सीधे संबंधित पंक्ति कौन-सी है?",
+                f"[{n}] केवल पाठ के आधार पर, \"{tlab}\" से सबसे सही विकल्प कौन-सा है?",
+                f"[{n}] पाठ में कई विचार हैं। \"{tlab}\" से सबसे अधिक संबंधित विकल्प कौन-सा है?",
             )
         return stems[(n - 1) % len(stems)]
     if lang == "roman_hindi":
         if focus_bit:
             stems = (
-                f"[{n}] Path ke anusar, «{focus_bit}» ke baare mein sabse sahi statement kaunsa hai?",
-                f"[{n}] Diye gaye text mein «{focus_bit}» se related sahi line kaunsi hai?",
-                f"[{n}] Keval path ke aadhar par, «{focus_bit}» ke liye sahi option chunein.",
-                f"[{n}] «{focus_bit}» ke sandarbh mein path kya kehta hai?",
+                f"[{n}] Path ke anusar, \"{focus_bit}\" ke baare mein sabse sahi statement kaunsa hai?",
+                f"[{n}] Diye gaye text mein \"{focus_bit}\" se related sahi line kaunsi hai?",
+                f"[{n}] Keval path ke aadhar par, \"{focus_bit}\" ke liye sahi option chunein.",
+                f"[{n}] \"{focus_bit}\" ke sandarbh mein path kya kehta hai?",
             )
         else:
             stems = (
-                f"[{n}] Path ke anusar, «{tlab}» se sabse achhe tarah match karne wala statement kaunsa hai?",
-                f"[{n}] Diye gaye text mein «{tlab}» se seedha related line kaunsi hai?",
-                f"[{n}] Keval path ke aadhar par, «{tlab}» ke liye sabse sahi option kaunsa hai?",
-                f"[{n}] Path mein kai ideas hain. «{tlab}» se sabse adhik related option kaunsa hai?",
+                f"[{n}] Path ke anusar, \"{tlab}\" se sabse achhe tarah match karne wala statement kaunsa hai?",
+                f"[{n}] Diye gaye text mein \"{tlab}\" se seedha related line kaunsi hai?",
+                f"[{n}] Keval path ke aadhar par, \"{tlab}\" ke liye sabse sahi option kaunsa hai?",
+                f"[{n}] Path mein kai ideas hain. \"{tlab}\" se sabse adhik related option kaunsa hai?",
             )
         return stems[(n - 1) % len(stems)]
     if focus_bit:
         stems = (
-            f"[{n}] According to the lesson, which statement about «{focus_bit}» is correct?",
-            f"[{n}] Which line from the text best matches «{focus_bit}»?",
-            f"[{n}] Based only on the passage, which choice is true regarding «{focus_bit}»?",
-            f"[{n}] What does the lesson say in connection with «{focus_bit}»?",
+            f"[{n}] According to the lesson, which statement about \"{focus_bit}\" is correct?",
+            f"[{n}] Which line from the text best matches \"{focus_bit}\"?",
+            f"[{n}] Based only on the passage, which choice is true regarding \"{focus_bit}\"?",
+            f"[{n}] What does the lesson say in connection with \"{focus_bit}\"?",
         )
     else:
         stems = (
-            f"[{n}] According to the lesson, which statement best matches «{tlab}»?",
-            f"[{n}] Which line from the text is most directly about «{tlab}»?",
-            f"[{n}] Based only on the passage, which choice aligns best with «{tlab}»?",
-            f"[{n}] The lesson includes several ideas. Which option is most relevant to «{tlab}»?",
+            f"[{n}] According to the lesson, which statement best matches \"{tlab}\"?",
+            f"[{n}] Which line from the text is most directly about \"{tlab}\"?",
+            f"[{n}] Based only on the passage, which choice aligns best with \"{tlab}\"?",
+            f"[{n}] The lesson includes several ideas. Which option is most relevant to \"{tlab}\"?",
         )
     return stems[(n - 1) % len(stems)]
 
@@ -376,7 +380,7 @@ def _fallback_question(
     templates = {
         "hindi": (
             (
-                f"[{n}] «{topic}» के लिए पाठ्यक्रम आमतौर पर सबसे पहले क्या जानने की अपेक्षा करता है?",
+                f"[{n}] \"{topic}\" के लिए पाठ्यक्रम आमतौर पर सबसे पहले क्या जानने की अपेक्षा करता है?",
                 [
                     f"{topic} के भीतर मुख्य शब्द, परिभाषाएँ और उनका संबंध।",
                     f"{topic} अध्यायों में कभी न आने वाला असंबंधित ज्ञान।",
@@ -387,7 +391,7 @@ def _fallback_question(
                 "अन्य विकल्प गंभीर अध्ययन लक्ष्य नहीं हैं।",
             ),
             (
-                f"[{n}] «{topic}» पढ़ते समय कौन-सा अभ्यास सबसे उपयोगी है?",
+                f"[{n}] \"{topic}\" पढ़ते समय कौन-सा अभ्यास सबसे उपयोगी है?",
                 [
                     f"मुख्य परिभाषाओं को उदाहरणों से जोड़ना।",
                     f"हर आरेख को बिना पढ़े छोड़ देना।",
@@ -398,7 +402,7 @@ def _fallback_question(
                 "अन्य विकल्प प्रभावी अध्ययन नहीं हैं।",
             ),
             (
-                f"[{n}] «{topic}» में भ्रम से बचने के लिए पहले क्या स्पष्ट होना चाहिए?",
+                f"[{n}] \"{topic}\" में भ्रम से बचने के लिए पहले क्या स्पष्ट होना चाहिए?",
                 [
                     f"मुख्य शब्दों का अर्थ और उनके आपसी संबंध।",
                     f"कि {topic} का कोई मानक नाम नहीं है।",
@@ -409,7 +413,7 @@ def _fallback_question(
                 "बाकी विकल्प आधार नहीं बनाते।",
             ),
             (
-                f"[{n}] «{topic}» की समीक्षा करते समय सही क्रम कौन-सा है?",
+                f"[{n}] \"{topic}\" की समीक्षा करते समय सही क्रम कौन-सा है?",
                 [
                     f"परिभाषा → उदाहरण → जाँच प्रश्न।",
                     f"केवल याद किए गए तथ्य बिना समझ के।",
@@ -422,7 +426,7 @@ def _fallback_question(
         ),
         "roman_hindi": (
             (
-                f"[{n}] «{topic}» ke liye textbooks usually pehle kya jaanna expect karti hain?",
+                f"[{n}] \"{topic}\" ke liye textbooks usually pehle kya jaanna expect karti hain?",
                 [
                     f"{topic} ke andar key terms, definitions aur unka connection.",
                     f"{topic} chapters mein kabhi na aane wala unrelated trivia.",
@@ -433,7 +437,7 @@ def _fallback_question(
                 "Baaki choices serious study goals nahi hain.",
             ),
             (
-                f"[{n}] «{topic}» padhte waqt kaunsa practice sabse useful hai?",
+                f"[{n}] \"{topic}\" padhte waqt kaunsa practice sabse useful hai?",
                 [
                     f"Key definitions ko examples se jodna.",
                     f"Har diagram bina padhe skip kar dena.",
@@ -444,7 +448,7 @@ def _fallback_question(
                 "Baaki options effective study nahi hain.",
             ),
             (
-                f"[{n}] «{topic}» mein confusion avoid karne ke liye pehle kya clear hona chahiye?",
+                f"[{n}] \"{topic}\" mein confusion avoid karne ke liye pehle kya clear hona chahiye?",
                 [
                     f"Key terms ka matlab aur unka aapas mein rishta.",
                     f"Ki {topic} ka koi standard naam nahi hai.",
@@ -455,7 +459,7 @@ def _fallback_question(
                 "Baaki options foundation nahi bante.",
             ),
             (
-                f"[{n}] «{topic}» revise karte waqt sahi order kaunsa hai?",
+                f"[{n}] \"{topic}\" revise karte waqt sahi order kaunsa hai?",
                 [
                     f"Definition → example → check question.",
                     f"Sirf rote facts bina samajh ke.",
@@ -468,7 +472,7 @@ def _fallback_question(
         ),
         "english": (
             (
-                f"[{n}] For «{topic}», what do textbooks usually expect you to know first?",
+                f"[{n}] For \"{topic}\", what do textbooks usually expect you to know first?",
                 [
                     f"Key terms, definitions, and how they connect within {topic}.",
                     f"Unrelated trivia that never appears in {topic} chapters.",
@@ -479,7 +483,7 @@ def _fallback_question(
                 "The other choices are not serious study goals.",
             ),
             (
-                f"[{n}] While studying «{topic}», which practice is most useful?",
+                f"[{n}] While studying \"{topic}\", which practice is most useful?",
                 [
                     "Connecting key definitions to worked examples.",
                     "Skipping every diagram without reading it.",
@@ -490,7 +494,7 @@ def _fallback_question(
                 "The other choices are not effective study habits.",
             ),
             (
-                f"[{n}] To avoid confusion in «{topic}», what should be clear first?",
+                f"[{n}] To avoid confusion in \"{topic}\", what should be clear first?",
                 [
                     "The meaning of key terms and how they relate.",
                     f"That {topic} has no standard terminology.",
@@ -501,7 +505,7 @@ def _fallback_question(
                 "The other choices do not establish a foundation.",
             ),
             (
-                f"[{n}] When reviewing «{topic}», which sequence works best?",
+                f"[{n}] When reviewing \"{topic}\", which sequence works best?",
                 [
                     "Definition → example → check question.",
                     "Rote facts without checking understanding.",
@@ -628,7 +632,8 @@ def _normalize_questions(
         built = q.model_copy(
             update={
                 "id": f"q{i + 1}",
-                "options": options,
+                "question": _normalize_quotes(q.question.strip()),
+                "options": [_normalize_quotes(o) for o in options],
                 "correct_option_index": idx,
                 "option_explanations": oex,
             }

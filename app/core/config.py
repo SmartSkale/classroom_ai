@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 3 #60 * 24 * 7  # 7 days
+    password_reset_expire_minutes: int = 30
 
     # Optional bootstrap admin (created on startup if no admin exists)
     bootstrap_admin_email: str | None = None

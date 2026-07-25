@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -36,3 +38,17 @@ def decode_access_token(token: str) -> str | None:
         return None
     subject = payload.get("sub")
     return str(subject) if subject else None
+
+
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token: str) -> str:
+    settings = get_settings()
+    return hashlib.sha256(f"{settings.secret_key}:{token}".encode("utf-8")).hexdigest()
+
+
+def reset_token_expiry() -> datetime:
+    settings = get_settings()
+    return datetime.now(UTC) + timedelta(minutes=settings.password_reset_expire_minutes)

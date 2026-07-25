@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+from app.schemas.datetime_json import as_utc_datetime
 
 
 class ProjectUpsertRequest(BaseModel):
@@ -24,6 +26,10 @@ class ProjectResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetimes(self, dt: datetime) -> datetime:
+        return as_utc_datetime(dt)
+
 
 class ProjectSummaryResponse(BaseModel):
     id: str
@@ -35,3 +41,7 @@ class ProjectSummaryResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetimes(self, dt: datetime) -> datetime:
+        return as_utc_datetime(dt)

@@ -9,6 +9,8 @@ from app.models.user import User, UserRole
 from app.schemas.auth import (
     MessageResponse,
     PasswordChange,
+    PasswordForgotRequest,
+    PasswordResetRequest,
     TokenResponse,
     UserRegister,
     UserResponse,
@@ -16,6 +18,7 @@ from app.schemas.auth import (
     UserUpdateResponse,
 )
 from app.services.group_memberships import link_user_to_group_memberships
+from app.services.password_reset import request_password_reset, reset_password_with_token
 
 router = APIRouter()
 
@@ -133,6 +136,30 @@ async def change_password(
         return MessageResponse(message="Password changed successfully")
 
     return await anyio.to_thread.run_sync(_change_password)
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(body: PasswordForgotRequest, db: DbSession) -> MessageResponse:
+    def _forgot() -> MessageResponse:
+        message = request_password_reset(db, body.email)
+        return MessageResponse(message=message)
+
+    return await anyio.to_thread.run_sync(_forgot)
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(body: PasswordResetRequest, db: DbSession) -> MessageResponse:
+    def _reset() -> MessageResponse:
+        try:
+            reset_password_with_token(db, body.token, body.new_password)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        return MessageResponse(message="Password reset successfully. You can log in with your new password.")
+
+    return await anyio.to_thread.run_sync(_reset)
 
 
 @router.get("/users", response_model=list[UserResponse])

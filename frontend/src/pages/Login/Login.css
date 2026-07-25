@@ -259,10 +259,142 @@
   }
 }
 
+.login-input-wrap input.login-input-invalid,
+.login-input.login-input-invalid {
+  border-color: var(--danger);
+}
+
+.login-input-wrap input.login-input-invalid:focus,
+.login-input.login-input-invalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.login-field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
 .login-error {
   margin: 0;
   color: var(--danger);
   font-size: 0.88rem;
+}
+
+.login-success {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.login-success p {
+  margin: 0;
+}
+
+.login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.login-back:hover {
+  color: var(--accent-hover);
+}
+
+.login-back-arrow {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.login-back-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.login-reset-sent-page .login-title {
+  margin-bottom: 1rem;
+}
+
+.login-reset-sent {
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.login-reset-sent strong {
+  font-weight: 700;
+}
+
+.login-reset-sent-hint {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.login-back-footer-sent {
+  margin-top: 0;
+}
+
+.login-reset-btn.btn {
+  margin-top: 0.25rem;
+  border-radius: 999px;
+  padding: 0.85rem 1.35rem;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  min-height: 3rem;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.login-reset-btn.btn-primary:disabled {
+  opacity: 1;
+  color: rgb(255 255 255 / 0.72);
+  background: color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-color: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-reset-btn.btn-primary:disabled::before {
+  opacity: 0;
+}
+
+.login-reset-btn-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.login-back-plain {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.login-back-plain:hover {
+  color: var(--accent);
+}
+
+.login-back-divider {
+  margin: 0.85rem 0 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }
 
 .login-switch {

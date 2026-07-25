@@ -4,6 +4,8 @@ import { AuthLayout } from '../layouts/AuthLayout'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Home } from '../pages/Home'
 import { Login } from '../pages/Login'
+import { ForgotPassword } from '../pages/ForgotPassword/ForgotPassword'
+import { ResetPassword } from '../pages/ResetPassword/ResetPassword'
 import { Dashboard } from '../pages/Dashboard'
 import { Profile } from '../pages/Profile'
 import { Settings } from '../pages/Settings'
@@ -99,6 +101,8 @@ export function AppRoutes() {
       {/* Auth */}
       <Route element={<AuthLayout />}>
         <Route path={ROUTES.login} element={<Login />} />
+        <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
+        <Route path={ROUTES.resetPassword} element={<ResetPassword />} />
       </Route>
 
       <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

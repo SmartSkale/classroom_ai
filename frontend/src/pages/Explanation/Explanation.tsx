@@ -260,7 +260,7 @@ export function Explanation() {
                   Copy explanation
                 </Button>
                 <Button variant="primary" size="sm" onClick={handleDownload}>
-                  Download .md
+                  Download
                 </Button>
               </>
             )}

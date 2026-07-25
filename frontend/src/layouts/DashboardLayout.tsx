@@ -237,18 +237,6 @@ export function DashboardLayout() {
           </div>
 
           <div className="dash-topbar-actions">
-            <button type="button" className="dash-topbar-notify" aria-label="Notifications">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 3a5 5 0 0 1 5 5v2.1c0 .5.2 1 .5 1.4L18.5 14H5.5l1-2.5c.3-.4.5-.9.5-1.4V8a5 5 0 0 1 5-5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinejoin="round"
-                />
-                <path d="M10 18a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-              </svg>
-            </button>
-
             <ProfileMenu
               initials={initials}
               displayName={firstName}

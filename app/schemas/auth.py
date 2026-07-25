@@ -74,5 +74,30 @@ class PasswordChange(BaseModel):
         return self
 
 
+class PasswordForgotRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+    new_password: str = Field(min_length=8, max_length=64)
+    confirm_password: str = Field(min_length=8, max_length=64)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, value: str) -> str:
+        if not _PASSWORD_UPPER.search(value):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not _PASSWORD_DIGIT.search(value):
+            raise ValueError("Password must contain at least one number")
+        return value
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "PasswordResetRequest":
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
 class MessageResponse(BaseModel):
     message: str

@@ -13,6 +13,7 @@ export interface AuthContextValue {
   logout: () => void
   updateProfile: (payload: UserUpdatePayload) => Promise<string | null>
   changePassword: (payload: ChangePasswordPayload) => Promise<void>
+  clearError: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
