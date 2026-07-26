@@ -29,10 +29,12 @@ function persistToken(token: string | null) {
   else localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
+const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
+
 export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
   user: null,
-  token: localStorage.getItem(TOKEN_STORAGE_KEY),
-  status: 'idle',
+  token: storedToken,
+  status: storedToken ? 'loading' : 'idle',
   error: null,
 
   login: async (email, password) => {
@@ -70,7 +72,10 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
 
   loadSession: async () => {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!token) return
+    if (!token) {
+      set({ status: 'idle', token: null, user: null })
+      return
+    }
     set({ status: 'loading', token })
     try {
       const user = await authService.getCurrentUser()

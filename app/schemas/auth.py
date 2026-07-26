@@ -68,9 +68,11 @@ class PasswordChange(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def passwords_match(self) -> "PasswordChange":
+    def validate_password_change(self) -> "PasswordChange":
         if self.new_password != self.confirm_password:
             raise ValueError("Passwords do not match")
+        if self.new_password == self.current_password:
+            raise ValueError("New password must be different from your current password")
         return self
 
 

@@ -72,8 +72,7 @@ export function Login() {
   const location = useLocation()
   const { login, register, status, error, clearError } = useAuth()
 
-  const requestedMode = (location.state as { mode?: Mode; from?: string } | null)?.mode
-  const returnTo = (location.state as { from?: string } | null)?.from
+  const requestedMode = (location.state as { mode?: Mode } | null)?.mode
   const [mode, setMode] = useState<Mode>(requestedMode === 'register' ? 'register' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -127,7 +126,7 @@ export function Login() {
     }
 
     if (localStorage.getItem(TOKEN_STORAGE_KEY)) {
-      navigate(returnTo || ROUTES.dashboard)
+      navigate(ROUTES.dashboard)
     }
   }
 

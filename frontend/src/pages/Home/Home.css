@@ -46,6 +46,7 @@
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 1rem 1.5rem 3rem;
+  scroll-margin-top: var(--navbar-height);
 }
 
 .home-section-title {
@@ -102,6 +103,7 @@
   margin: 0 auto;
   padding: 2rem 1.5rem 5rem;
   width: 100%;
+  scroll-margin-top: var(--navbar-height);
 }
 
 .home-features-grid {

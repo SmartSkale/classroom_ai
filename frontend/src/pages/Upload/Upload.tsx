@@ -78,6 +78,7 @@ export function Upload() {
 
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [text, setText] = useState('')
   const [outputs, setOutputs] = useState<OutputTypeId[]>(DEFAULT_OUTPUT_TYPES)
@@ -100,6 +101,7 @@ export function Upload() {
     const err = validateFiles(selected)
     if (err) {
       setFileError(err)
+      setUploadSuccess(null)
       return
     }
 
@@ -107,6 +109,7 @@ export function Upload() {
 
     if (selected.some((f) => isPdfFile(f))) {
       setFiles([selected[0]])
+      setUploadSuccess('File uploaded successfully.')
       setErrors((e) => ({ ...e, content: undefined }))
       return
     }
@@ -114,6 +117,7 @@ export function Upload() {
     const imageOnly = selected.filter((f) => isImageFile(f))
     if (imageOnly.length === 0) {
       setFileError('Unsupported file type.')
+      setUploadSuccess(null)
       return
     }
 
@@ -121,20 +125,28 @@ export function Upload() {
     const mergeErr = validateFiles(merged)
     if (mergeErr) {
       setFileError(mergeErr)
+      setUploadSuccess(null)
       return
     }
     setFiles(merged)
+    setUploadSuccess(
+      imageOnly.length === 1
+        ? 'File uploaded successfully.'
+        : `${imageOnly.length} files uploaded successfully.`,
+    )
     setErrors((e) => ({ ...e, content: undefined }))
   }
 
   function removeFile(index: number) {
     setFiles((prev) => prev.filter((_, i) => i !== index))
     setFileError(null)
+    setUploadSuccess(null)
   }
 
   function clearFiles() {
     setFiles([])
     setFileError(null)
+    setUploadSuccess(null)
   }
 
   function onBrowse(e: ChangeEvent<HTMLInputElement>) {
@@ -273,6 +285,11 @@ export function Upload() {
           />
         </div>
         {fileError && <p className="upload-error">{fileError}</p>}
+        {uploadSuccess && !fileError && (
+          <p className="upload-success" role="status">
+            {uploadSuccess}
+          </p>
+        )}
 
         <div className="upload-divider">
           <span>OR paste text below</span>

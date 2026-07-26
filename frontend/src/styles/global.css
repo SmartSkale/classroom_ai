@@ -4,6 +4,7 @@
 
 html {
   background: var(--bg);
+  scroll-padding-top: var(--navbar-height);
 }
 
 body {

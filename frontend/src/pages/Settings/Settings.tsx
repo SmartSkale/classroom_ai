@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Button } from '../../components/Button'
+import { PasswordInput } from '../../components/PasswordInput'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../utils/apiErrors'
 import {
   getConfirmPasswordError,
+  getNewPasswordDifferentError,
   getNewPasswordError,
 } from '../../utils/validators'
 import '../Profile/Profile.css'
@@ -24,8 +26,9 @@ export function Settings() {
   async function handleChangePassword() {
     const currentErr = !currentPassword ? 'Current password is required.' : null
     const newErr = getNewPasswordError(newPassword)
+    const differentErr = getNewPasswordDifferentError(newPassword, currentPassword)
     const confirmErr = getConfirmPasswordError(confirmPassword, newPassword)
-    const firstError = currentErr ?? newErr ?? confirmErr
+    const firstError = currentErr ?? newErr ?? differentErr ?? confirmErr
     if (firstError) {
       setPasswordMessage({ type: 'error', text: firstError })
       return
@@ -75,9 +78,8 @@ export function Settings() {
 
         <label className="profile-field" htmlFor="settings-current-password">
           <span>Current password</span>
-          <input
+          <PasswordInput
             id="settings-current-password"
-            type="password"
             value={currentPassword}
             onChange={(e) => {
               setCurrentPassword(e.target.value)
@@ -89,9 +91,8 @@ export function Settings() {
 
         <label className="profile-field" htmlFor="settings-new-password">
           <span>New password</span>
-          <input
+          <PasswordInput
             id="settings-new-password"
-            type="password"
             value={newPassword}
             onChange={(e) => {
               setNewPassword(e.target.value)
@@ -104,9 +105,8 @@ export function Settings() {
         <div className="profile-field-row">
           <label className="profile-field" htmlFor="settings-confirm-password">
             <span>Confirm new password</span>
-            <input
+            <PasswordInput
               id="settings-confirm-password"
-              type="password"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value)

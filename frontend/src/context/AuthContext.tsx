@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     status,
     error,
-    isAuthenticated: Boolean(token && user),
+    isAuthenticated: status === 'authenticated',
     login,
     register,
     logout,

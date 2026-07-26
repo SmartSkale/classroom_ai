@@ -296,3 +296,9 @@
   color: var(--danger);
   font-size: 0.88rem;
 }
+
+.upload-success {
+  margin: 0.5rem 0 0;
+  color: var(--success, #15803d);
+  font-size: 0.88rem;
+}

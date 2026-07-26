@@ -85,3 +85,13 @@ export function getConfirmPasswordError(value: string, newPassword: string): str
   if (value !== newPassword) return 'Passwords do not match.'
   return null
 }
+
+export function getNewPasswordDifferentError(
+  newPassword: string,
+  currentPassword: string,
+): string | null {
+  if (newPassword && currentPassword && newPassword === currentPassword) {
+    return 'New password must be different from your current password.'
+  }
+  return null
+}
