@@ -54,6 +54,8 @@ export interface StartGenerationInput {
   files?: File[]
   outputs: OutputTypeId[]
   outputLanguage: OutputLanguageId
+  /** When uploading a PDF: printed or handwritten (EasyOCR). Defaults to auto on backend. */
+  documentType?: 'auto' | 'printed' | 'handwritten'
 }
 
 export interface GenerationContextValue {

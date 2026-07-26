@@ -361,6 +361,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
                 files,
                 topicHint: name,
                 outputLanguage,
+                documentType: input.documentType ?? 'auto',
               })
             fileExplanation = explanation
             if (extracted.trim()) sourceText = extracted.trim()

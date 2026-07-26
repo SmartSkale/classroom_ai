@@ -224,6 +224,48 @@
   font-size: 0.82rem;
 }
 
+.upload-pdf-type {
+  margin-top: 1.25rem;
+  padding: 0;
+  border: none;
+}
+
+.upload-pdf-type legend {
+  padding: 0;
+  margin-bottom: 0.65rem;
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.upload-pdf-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.upload-radio input {
+  margin-top: 0.2rem;
+}
+
+.upload-pdf-type-hint {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.upload-pdf-type-error .upload-pdf-type-hint {
+  margin-bottom: 0.35rem;
+}
+
 .upload-outputs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

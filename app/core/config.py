@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     email_from: str = "Classroom AI <noreply@example.com>"
     frontend_url: str = "http://localhost:5173"
 
+    # Handwriting OCR (EasyOCR) for scanned handwritten PDFs
+    handwriting_ocr_enabled: bool = True
+    handwriting_ocr_min_words_per_page: int = 15
+    handwriting_ocr_render_scale: float = 2.5
+
 
 @lru_cache
 def get_settings() -> Settings:

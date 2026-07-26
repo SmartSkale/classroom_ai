@@ -20,3 +20,4 @@ edge-tts>=6.1.0
 pymupdf>=1.24.0
 pdfplumber>=0.11.0
 pytesseract>=0.3.10
+easyocr>=1.7.0

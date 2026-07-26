@@ -1,5 +1,5 @@
 import api from './api'
-import type { OutputLanguageId } from '../utils/constants'
+import type { OutputLanguageId, PdfDocumentTypeId } from '../utils/constants'
 
 /** @deprecated Prefer OutputLanguageId from utils/constants — kept for existing imports. */
 export type OutputLanguage = OutputLanguageId
@@ -49,6 +49,8 @@ export interface GenerateExplanationFromFileParams {
   topicHint?: string
   stack?: string
   outputLanguage?: OutputLanguage
+  /** PDF only: printed (default path) or handwritten (EasyOCR). Omit for auto on backend. */
+  documentType?: PdfDocumentTypeId | 'auto'
 }
 
 /**
@@ -128,7 +130,13 @@ function appendExplainFormFields(
 async function generateExplanationFromFile(
   params: GenerateExplanationFromFileParams,
 ): Promise<ExplanationWithSource> {
-  const { files, topicHint, stack = 'openai', outputLanguage = 'english' } = params
+  const {
+    files,
+    topicHint,
+    stack = 'openai',
+    outputLanguage = 'english',
+    documentType = 'auto',
+  } = params
 
   if (files.length === 0) {
     throw new Error('No files provided for extraction.')
@@ -153,6 +161,7 @@ async function generateExplanationFromFile(
   let endpoint: string
   if (hasPdf) {
     form.append('file', files[0])
+    form.append('document_type', documentType)
     endpoint = '/explain/pdf'
   } else if (files.length === 1) {
     form.append('file', files[0])
@@ -171,9 +180,22 @@ async function generateExplanationFromFile(
   return { explanation, sourceText }
 }
 
+async function detectPdfType(
+  file: File,
+): Promise<{ looks_printed: boolean; looks_handwritten: boolean }> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post<{ looks_printed: boolean; looks_handwritten: boolean }>(
+    '/explain/pdf/detect',
+    form,
+  )
+  return data
+}
+
 export const explanationService = {
   generateExplanation,
   generateExplanationFromFile,
+  detectPdfType,
   isImageFile,
   isPdfFile,
 }

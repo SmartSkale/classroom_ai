@@ -13,7 +13,7 @@ from app.schemas.language import OutputLanguage, language_display_name, language
 from app.services import illustration_openai, illustration_opensource
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import ImageUrlPart, Message, TextPart
-from app.services.pdf_extract import extract_pdf_to_text
+from app.services.pdf_extract import DocumentType, extract_pdf_to_text
 
 
 def _user_language_block(output_language: OutputLanguage, *, closing: bool = False) -> str:
@@ -548,18 +548,24 @@ async def explain_from_pdf_bytes(
     llm_provider: str | None,
     ocr_pages: bool,
     ocr_images: bool,
+    document_type: DocumentType = "auto",
 ) -> ExplainResponse:
     """Extract PDF text and generate the explanation payload from it."""
     # pdfplumber + OCR is CPU/IO heavy; run it off the event loop.
     ext = await anyio.to_thread.run_sync(
         functools.partial(
-            extract_pdf_to_text, pdf_bytes, ocr_pages=ocr_pages, ocr_images=ocr_images
+            extract_pdf_to_text,
+            pdf_bytes,
+            ocr_pages=ocr_pages,
+            ocr_images=ocr_images,
+            document_type=document_type,
         )
     )
     prefix = (
         "[Source: PDF extraction — content from **all extracted pages** is included below (each page starts with "
-        "=== Page N ===). Tables appear in [Table …] blocks; text from figures or scans in [Text from image…] or "
-        "[Page N — OCR from page image] blocks. Base your lesson on the **entire** excerpt, not only the opening lines.]\n\n"
+        "=== Page N ===). Tables appear in [Table …] blocks; text from figures or scans in [Text from image…], "
+        "[Page N — OCR from page image], or [Page N — handwriting OCR] blocks. "
+        "Base your lesson on the **entire** excerpt, not only the opening lines.]\n\n"
     )
     out = await explain_from_text(
         prefix + ext.chapter_text,

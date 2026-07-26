@@ -49,10 +49,10 @@ ClassroomAI uses **two types of AI**:
 ```
 📱 React Frontend (Vite + React 19 + TypeScript)
    ↓ login / register (JWT)
-🔐 Auth + SQL database (users, projects, groups, assignments, quiz attempts)
+🔐 Auth + SQL database (users, projects, groups, assignments, quiz attempts, password reset tokens)
    ↓
 ⚙️ FastAPI Python Backend
-   ├─ Auth (register, login, profile, password)
+   ├─ Auth (register, login, profile, password, forgot/reset password)
    ├─ Projects (teacher Project Library — full generation jobs)
    ├─ Groups (teacher class groups + student emails)
    ├─ Assignments (lesson snapshots assigned to groups)
@@ -61,13 +61,13 @@ ClassroomAI uses **two types of AI**:
    ↓
 💾 Storage
    └─ Database: users, projects, teacher_groups, group_members,
-                group_assignments, quiz_attempts
+                group_assignments, quiz_attempts, password_reset_tokens
 ```
 
 ### The Flow: What Happens Inside
 
 1. **User uploads** chapter text, PDF, or screenshots
-2. **Backend extracts** text (handles PDFs with tables, OCR for scanned images)
+2. **Backend extracts** text (handles PDFs with tables, Tesseract OCR for printed scans, EasyOCR for handwritten notes)
 3. **LLM processes** the text and creates an explanation
 4. **Other modules reuse** this explanation to create:
    - Quiz questions
@@ -83,20 +83,25 @@ ClassroomAI uses **two types of AI**:
 ### 0. **Accounts & Access Control (Authentication Module)**
 - **Register / log in**: Email + password accounts with secure password hashing (bcrypt)
 - **JWT tokens**: Login returns a bearer token used to access every content feature
+- **Password reset**: Forgot-password flow via email link (`/forgot-password` → `/reset-password`); tokens expire after 30 minutes by default
+- **Change password**: Logged-in users can update their password from **Settings** (`/settings`) or `POST /auth/change-password`
 - **Role-based access**: Five roles — `teacher`, `student`, `course_creator`, `parent`, and `admin`
   - Public registration is allowed for non-admin roles
   - Parents share Project Library / upload access with teachers, but cannot create groups or assign lessons
   - Admin accounts are created via the bootstrap setting or the `init_db` script (never via public registration)
   - Admin-only endpoints (e.g. listing all users) are protected by role checks
-- **Persistent storage**: Users are stored in a SQL database (SQLite by default, PostgreSQL for production)
+- **Account status**: Inactive accounts cannot log in (`403 Account is inactive`)
+- **Persistent storage**: Users and password-reset tokens are stored in a SQL database (SQLite by default, PostgreSQL for production)
 - **Best For**: Securing the app and tailoring access for different kinds of users
 
 **Key endpoints:**
 - `POST /api/v1/auth/register` — create an account
 - `POST /api/v1/auth/login` — get a bearer token (form: `username=email`, `password`)
 - `GET /api/v1/auth/me` — current user profile (requires token)
-- `PATCH /api/v1/auth/me` — update name / email
-- `POST /api/v1/auth/change-password` — change password
+- `PATCH /api/v1/auth/me` — update name / email (returns a new token when email changes)
+- `POST /api/v1/auth/change-password` — change password (logged in)
+- `POST /api/v1/auth/forgot-password` — request a password-reset email (`{ "email": "..." }`)
+- `POST /api/v1/auth/reset-password` — set a new password with a reset token (`{ "token": "...", "new_password": "...", "confirm_password": "..." }`)
 - `GET /api/v1/auth/users` — list all users (admin only)
 - `GET /api/v1/usage/current` — usage summary for the logged-in user
 
@@ -162,7 +167,9 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 
 ### 1. **Learn (Explanation Module)**
 - **Input**: Chapter text, PDF, or images of textbook pages
-- **Output**: Structured explanation in your chosen language
+- **Output**: Structured explanation in your chosen **output language**
+- **PDF types**: **Printed/typed PDFs** use native text + Tesseract; **handwritten note PDFs** use EasyOCR (English handwriting)
+- **Languages supported**: English, Hindi, Bengali, Marathi, Telugu, Tamil, and Roman Hindi (Hinglish) — selected on **Upload** and applied across explanation, quiz, slides, flashcards, audio, and more
 - **Bonus**: Auto-generates Mermaid diagrams for processes
 - **Best For**: Understanding new topics
 
@@ -264,7 +271,9 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 5. **Optional**:
    - [Pexels API](https://www.pexels.com/api/) key for stock photos in slides
    - Stable Diffusion WebUI for local image generation
-   - SMTP credentials (e.g. Gmail App Password) for group/assignment email notifications
+   - **EasyOCR** (installed via `pip install -r requirements.txt`) for handwritten English PDFs — first run downloads ~100–200 MB of models
+   - **Tesseract** (system install) for printed/scanned textbook PDFs — optional but recommended
+   - SMTP credentials (e.g. Gmail App Password) for password-reset emails and group/assignment notifications
 
 > **Auth today:** email + password with JWT (not Google Sign-In).  
 > **LLMs today:** `openai` or `ollama` only (Gemini is not wired up yet).
@@ -342,6 +351,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 # SMTP_USE_TLS=true
 # EMAIL_FROM=Classroom AI <you@gmail.com>
 # FRONTEND_URL=http://localhost:5173
+# PASSWORD_RESET_EXPIRE_MINUTES=30
+
+# Handwriting OCR (EasyOCR — English handwritten PDFs)
+HANDWRITING_OCR_ENABLED=true
+HANDWRITING_OCR_MIN_WORDS_PER_PAGE=15
+HANDWRITING_OCR_RENDER_SCALE=2.5
 ```
 
 **Notes:**
@@ -423,7 +438,7 @@ Keep **both** terminals running (backend on `:8000`, frontend on `:5173`).
 ### Teacher workflow (web UI)
 
 1. **Register / log in** as **Teacher** or **Course creator**
-2. **Upload** a chapter (`/upload`) — paste text or drop a PDF; select outputs (explanation, quiz, slides, etc.)
+2. **Upload** a chapter (`/upload`) — paste text or drop a PDF; for PDFs choose **Printed / typed** or **Handwritten notes**; choose **output language** and select outputs (explanation, quiz, slides, etc.)
 3. **Processing** — watch generation progress; project auto-saves to the server **Project Library**
 4. **Project Library** (`/library`) — open outputs on any device, download ZIP, regenerate, **Assign to Group**, delete
 5. **Class Groups** (`/groups`) — create a group, add student emails, view assignments and **Quiz Scores**
@@ -456,6 +471,14 @@ Parents have the same content-creation access as teachers, but **cannot** create
 3. **Teachers / parents:** go to **Upload** and create a project
 4. **Students:** open **My Lessons** after your teacher assigns content or shares a link
 5. **Download** slides, audio, or full ZIP from the library or explanation page
+6. **Settings** (`/settings`) — switch light/dark theme, change password, or log out
+
+### Password reset (web UI)
+
+1. On the login page, click **Forgot password?**
+2. Enter your email — if the account exists, a reset link is sent (requires SMTP; without SMTP the link is logged on the server console in development)
+3. Open the link (`/reset-password?token=...`) and set a new password
+4. Log in with the new password
 
 ### Using the API (For Developers)
 
@@ -482,6 +505,27 @@ curl -X POST "http://localhost:8000/api/v1/auth/login" \
   -d "username=teacher@example.com" \
   -d "password=supersecret"
 # → {"access_token": "eyJhbGci...", "token_type": "bearer"}
+```
+
+**Request a password reset:**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/forgot-password" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "teacher@example.com"}'
+# → {"message": "If that email is registered, you will receive a password reset link shortly."}
+```
+
+**Reset password with token (from email link):**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "<token-from-email>",
+    "new_password": "newsecret123",
+    "confirm_password": "newsecret123"
+  }'
 ```
 
 **Generate an Explanation (with token):**
@@ -602,7 +646,13 @@ Login is **email + password** (JWT). There is no Google Sign-In / OAuth client I
 
 ### Configure SMTP Email Notifications (Optional)
 
-When configured, the backend emails students when they are **added to a group** or **assigned a lesson**. Group/assignment APIs still succeed if SMTP is unset (emails are skipped).
+When configured, the backend sends email for:
+
+- **Password reset** — one-time link to `/reset-password?token=...` (required for production forgot-password; without SMTP the link is only logged to the server console)
+- **Group invites** — when a student email is added to a class group
+- **Lesson assignments** — when a teacher assigns content to a group
+
+Group/assignment APIs still succeed if SMTP is unset (emails are skipped).
 
 1. Choose an SMTP provider (Gmail, Outlook, Mailgun SMTP, etc.).
 2. Add to root `.env`:
@@ -615,12 +665,14 @@ SMTP_PASSWORD=your-app-password
 SMTP_USE_TLS=true
 EMAIL_FROM=Classroom AI <you@gmail.com>
 FRONTEND_URL=http://localhost:5173
+PASSWORD_RESET_EXPIRE_MINUTES=30
 ```
 
 3. **Gmail:** enable [2-Step Verification](https://myaccount.google.com/security), then create an [App Password](https://myaccount.google.com/apppasswords). Put that 16-character password in `SMTP_PASSWORD` (not your normal Gmail password). Using a regular password often fails with `Application-specific password required`.
-4. Restart uvicorn after editing `.env`.
+4. Set `FRONTEND_URL` to the public URL of your React app so reset and notification links point to the correct host.
+5. Restart uvicorn after editing `.env`.
 
-Leave `SMTP_HOST` empty to disable sending.
+Leave `SMTP_HOST` empty to disable sending (password-reset links will only appear in server logs).
 
 ### Gemini / Google Sign-In (Not Supported Yet)
 
@@ -651,7 +703,8 @@ classroom_ai/
 │   │   ├── user.py               # User model + UserRole enum
 │   │   ├── project.py            # Project (teacher library + job_data JSON)
 │   │   ├── groups.py             # TeacherGroup, GroupMember, GroupAssignment
-│   │   └── quiz_attempt.py       # QuizAttempt (server-side quiz results)
+│   │   ├── quiz_attempt.py       # QuizAttempt (server-side quiz results)
+│   │   └── password_reset.py     # PasswordResetToken (one-time reset links)
 │   ├── api/
 │   │   └── v1/
 │   │       ├── router.py         # All routes (auth public, rest protected)
@@ -676,12 +729,14 @@ classroom_ai/
 │   │   ├── quiz_scoring.py       # Server-side quiz scoring
 │   │   ├── student_assignments.py # Resolve student ↔ group assignments
 │   │   ├── group_memberships.py  # Link invites to user accounts
-│   │   ├── email.py              # SMTP notifications (group / assignment)
+│   │   ├── email.py              # SMTP notifications (password reset, group / assignment)
+│   │   ├── password_reset.py     # Forgot-password token create/consume
 │   │   ├── slides.py             # Creates PowerPoint
 │   │   ├── flashcards.py         # Creates flashcards
 │   │   ├── tts.py                # Text-to-speech
 │   │   ├── infographic.py        # Infographic generation
-│   │   ├── pdf_extract.py        # PDF / image text extraction
+│   │   ├── pdf_extract.py        # PDF text + tables + Tesseract + EasyOCR handwriting
+│   │   ├── handwriting_ocr.py    # EasyOCR wrapper for handwritten English pages
 │   │   ├── pexels_stock.py       # Pexels stock photo helpers
 │   │   ├── video_openai.py       # OpenAI / Sora video
 │   │   ├── video_opensource.py   # Local / ffmpeg video pipeline
@@ -710,14 +765,14 @@ classroom_ai/
 ├── frontend/                     # React 19 + Vite + TypeScript SPA
 │   ├── public/                   # favicon, icons, robots.txt
 │   ├── src/
-│   │   ├── pages/                # Home, Login, Dashboard, StudentDashboard,
-│   │   │                         # Library, Groups, Upload, Processing,
-│   │   │                         # Explanation, Quiz, QuizTake, QuizResults,
-│   │   │                         # Slides, Flashcards, Audio, Video,
-│   │   │                         # Infographic, SharedLesson, Profile, ComingSoon
+│   │   ├── pages/                # Home, Login, ForgotPassword, ResetPassword,
+│   │   │                         # Dashboard, StudentDashboard, Library, Groups,
+│   │   │                         # Upload, Processing, Explanation, Quiz, QuizTake,
+│   │   │                         # QuizResults, Slides, Flashcards, Audio, Video,
+│   │   │                         # Infographic, SharedLesson, Profile, Settings, ComingSoon
 │   │   ├── layouts/              # MainLayout, AuthLayout, DashboardLayout
-│   │   ├── components/           # Navbar, Button, Modal, Loader,
-│   │   │                         # DownloadAllButton, AssignToGroupModal,
+│   │   ├── components/           # Navbar, Button, Modal, Loader, Logo, ThemeToggle,
+│   │   │                         # PasswordInput, DownloadAllButton, AssignToGroupModal,
 │   │   │                         # MermaidDiagram, RelativeTime, …
 │   │   ├── context/              # AuthContext + GenerationContext
 │   │   ├── hooks/                # useAuth, useFetch, useRelativeTime
@@ -740,7 +795,7 @@ classroom_ai/
 ├── uv.lock                       # Locked Python deps (uv)
 ├── .env.example
 ├── .python-version
-├── classroom_ai.db               # SQLite (users, projects, groups, assignments, quiz_attempts)
+├── classroom_ai.db               # SQLite (users, projects, groups, assignments, quiz_attempts, password_reset_tokens)
 ├── ARCHITECTURE.md               # System architecture overview
 ├── FLOW_DOCUMENTATION.html       # Visual flow documentation
 └── Readme.md
@@ -759,7 +814,7 @@ Key directories:
 
 | Data | Storage | Notes |
 |------|---------|--------|
-| Users, groups, members, assignments, quiz attempts | **SQLite / PostgreSQL** | Created on backend startup (`init_db`) |
+| Users, groups, members, assignments, quiz attempts, password reset tokens | **SQLite / PostgreSQL** | Created on backend startup (`init_db`) |
 | Teacher project jobs (generated content) | **Database** (`projects` table) | Full job JSON in `job_data`; owned by teacher; syncs across devices |
 | Assignment `content_snapshot` | **Database JSON** | Students load lesson on any device |
 | Quiz results (production path) | **Database** | `quiz_attempts` table; browser cache is optional only |
@@ -822,6 +877,13 @@ Key directories:
 - Use a Google [App Password](https://myaccount.google.com/apppasswords), not your normal Gmail password
 - Confirm `SMTP_HOST`, `SMTP_USERNAME`, and `SMTP_PASSWORD` are set, then restart the API
 
+### Problem: Password reset email not received
+
+**Solution:**
+- Confirm `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `FRONTEND_URL` are set in root `.env`, then restart uvicorn
+- In development without SMTP, check the **backend console** — the reset link is logged there instead of being emailed
+- Reset links expire after `PASSWORD_RESET_EXPIRE_MINUTES` (default 30); request a new one from `/forgot-password`
+
 ### Problem: "401 Unauthorized" / "Could not validate credentials"
 
 **Solution:**
@@ -855,6 +917,24 @@ pip install -r requirements.txt
 - Try a smaller PDF first
 - Check that `pdfplumber` is installed: `pip list | grep pdfplumber`
 
+### Problem: Handwritten PDF returns no text / poor extraction
+
+**Solution:**
+- On **Upload**, select **Handwritten notes (scanned or photo PDF)** when uploading a handwritten PDF
+- Ensure EasyOCR is installed: `pip install easyocr>=1.7.0` (included in `requirements.txt`)
+- First upload may be slow while EasyOCR downloads English models (~100–200 MB)
+- Handwriting OCR is **English only**; use printed PDF mode or paste typed text for other languages
+- Set `HANDWRITING_OCR_ENABLED=true` in `.env` (default) and restart uvicorn
+- Without EasyOCR, auto mode still tries Tesseract for printed scans only
+- You can edit extracted source text on the **Explanation** page after upload if OCR missed a few words
+
+### Problem: Handwritten PDF extraction is very slow
+
+**Solution:**
+- EasyOCR runs on CPU by default (~5–15 seconds per page); expect longer processing on first run
+- Keep PDFs to a reasonable page count (backend processes up to 100 pages)
+- For faster iteration, photograph fewer pages or paste typed notes instead
+
 ### Problem: "Images not generating"
 
 **Solution:**
@@ -887,7 +967,9 @@ pip install -r requirements.txt
 | **OpenAI SDK** | Cloud AI | Calls OpenAI API |
 | **Ollama** | Local AI | Runs AI models locally |
 | **python-pptx** | PowerPoint | Creates slide decks |
-| **pdfplumber** | PDF reading | Extracts text from PDFs |
+| **pdfplumber** | PDF reading | Extracts text and tables from printed PDFs |
+| **pytesseract + Tesseract** | Printed OCR | Scanned textbook pages (system binary required) |
+| **EasyOCR** | Handwriting OCR | English handwritten note PDFs (local, CPU) |
 | **imageio** | Image processing | Handles video/image creation |
 | **edge-tts** | Text to speech | Free voice narration |
 
@@ -898,11 +980,12 @@ pip install -r requirements.txt
 | **React** | UI framework (React 19) |
 | **Vite** | Dev server + production build |
 | **TypeScript** | Typed JavaScript |
-| **React Router** | Pages, protected routes, shared links (`/q/:id`) |
+| **React Router** | Pages, protected routes, shared links (`/q/:id`), forgot/reset password |
 | **Zustand** | Auth state |
 | **Axios** | API client with JWT interceptor |
 | **Mermaid** | Diagram rendering in explanations |
 | **JSZip** | Download-all materials bundle |
+| **CSS variables + `data-theme`** | Light / dark mode (Settings + navbar toggle) |
 
 ---
 
@@ -990,7 +1073,7 @@ pip install -r requirements.txt
 2. **Create Content Library**: Build repository of lessons in multiple formats
 3. **Support Multiple Learners**: Provide slides for visual learners, audio for auditory, flashcards for kinesthetic
 4. **Accessibility**: Audio and captions help students with disabilities
-5. **Multiple Languages**: Generate materials in student's native language
+5. **Multiple Languages**: Generate materials in English, Hindi, Bengali, Marathi, Telugu, Tamil, or Roman Hindi from the Upload screen
 
 ### Future Features (Roadmap)
 
@@ -1001,7 +1084,7 @@ pip install -r requirements.txt
 - Alembic migrations for production database upgrades
 - Mobile app
 
-**Recently added:** server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
+**Recently added:** handwritten PDF parsing (EasyOCR), password reset (forgot/reset password flow + SMTP), Settings page (theme + change password), multi-language output (7 Indian languages + English), refreshed UI (logo, auth screens, sidebar), server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
 
 ---
 
@@ -1089,6 +1172,7 @@ Stop and restart uvicorn (settings are cached; file watch alone is not enough).
 | **Virtual Environment** | Isolated area on your computer for Python libraries |
 | **Class group** | Teacher-defined roster of student emails for assigning lessons |
 | **Quiz attempt** | A submitted quiz stored in the database with score and review items |
+| **Password reset token** | One-time link emailed to reset a forgotten password (stored hashed in the database) |
 | **PPT / PowerPoint** | Presentation software with slides |
 | **MP3** | Audio file format (like music files) |
 | **MP4** | Video file format |
@@ -1098,5 +1182,5 @@ Stop and restart uvicorn (settings are cached; file watch alone is not enough).
 ---
 
 **Last Updated**: July 2026  
-**Version**: 1.3  
-**Status**: Teacher & student journeys, server Project Library, class groups, server quiz results
+**Version**: 1.5  
+**Status**: Handwritten PDF OCR (EasyOCR), password reset, Settings & theme, multi-language output, teacher & student journeys, server Project Library, class groups, server quiz results
