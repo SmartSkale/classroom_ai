@@ -22,7 +22,12 @@ router = APIRouter()
 TEACHER_ROLES = GROUP_ROLES
 
 
-def _group_to_response(group: TeacherGroup, db: Session) -> GroupResponse:
+def _group_to_response(
+    group: TeacherGroup,
+    db: Session,
+    *,
+    project_assigned: bool = False,
+) -> GroupResponse:
     member_count = db.query(GroupMember).filter(GroupMember.group_id == group.id).count()
     assignment_count = (
         db.query(GroupAssignment).filter(GroupAssignment.group_id == group.id).count()
@@ -35,6 +40,7 @@ def _group_to_response(group: TeacherGroup, db: Session) -> GroupResponse:
         updated_at=group.updated_at,
         member_count=member_count,
         assignment_count=assignment_count,
+        project_assigned=project_assigned,
     )
 
 
@@ -50,6 +56,7 @@ def _get_owned_group(db: Session, group_id: int, teacher_id: int) -> TeacherGrou
 @router.get("", response_model=list[GroupResponse])
 async def list_groups(
     db: DbSession,
+    project_id: str | None = None,
     current_user: User = Depends(require_roles(*TEACHER_ROLES)),
 ) -> list[GroupResponse]:
     def _list() -> list[GroupResponse]:
@@ -59,7 +66,27 @@ async def list_groups(
             .order_by(TeacherGroup.updated_at.desc())
             .all()
         )
-        return [_group_to_response(g, db) for g in groups]
+        assigned_group_ids: set[int] = set()
+        if project_id:
+            group_ids = [g.id for g in groups]
+            if group_ids:
+                rows = (
+                    db.query(GroupAssignment.group_id)
+                    .filter(
+                        GroupAssignment.project_id == project_id,
+                        GroupAssignment.group_id.in_(group_ids),
+                    )
+                    .all()
+                )
+                assigned_group_ids = {row[0] for row in rows}
+        return [
+            _group_to_response(
+                g,
+                db,
+                project_assigned=g.id in assigned_group_ids,
+            )
+            for g in groups
+        ]
 
     return await anyio.to_thread.run_sync(_list)
 
@@ -253,6 +280,19 @@ async def assign_content(
 ) -> GroupAssignmentResponse:
     def _assign() -> tuple[GroupAssignmentResponse, str, list[str]]:
         group = _get_owned_group(db, group_id, current_user.id)
+        existing = (
+            db.query(GroupAssignment)
+            .filter(
+                GroupAssignment.group_id == group_id,
+                GroupAssignment.project_id == body.project_id,
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This project is already assigned to this group",
+            )
         assignment = GroupAssignment(
             group_id=group_id,
             assigned_by_id=current_user.id,

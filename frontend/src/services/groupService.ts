@@ -10,6 +10,7 @@ export interface TeacherGroup {
   updated_at: string
   member_count: number
   assignment_count: number
+  project_assigned?: boolean
 }
 
 export interface GroupMember {
@@ -46,8 +47,9 @@ export interface StudentGroupAssignment {
   last_quiz_passed: boolean | null
 }
 
-async function listGroups(): Promise<TeacherGroup[]> {
-  const { data } = await api.get<TeacherGroup[]>('/groups')
+async function listGroups(options?: { projectId?: string }): Promise<TeacherGroup[]> {
+  const params = options?.projectId ? { project_id: options.projectId } : undefined
+  const { data } = await api.get<TeacherGroup[]>('/groups', { params })
   return data
 }
 

@@ -36,14 +36,14 @@ export function AssignToGroupModal({
     setLoading(true)
     setError(null)
     try {
-      const data = await groupService.listGroups()
+      const data = await groupService.listGroups({ projectId })
       setGroups(data)
     } catch {
       setError('Could not load your groups.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [projectId])
 
   useEffect(() => {
     if (!open) return
@@ -66,10 +66,25 @@ export function AssignToGroupModal({
         outputs,
         content_snapshot: job,
       })
+      setGroups((prev) =>
+        prev.map((group) =>
+          group.id === groupId ? { ...group, project_assigned: true } : group,
+        ),
+      )
       setSuccess(`Assigned to “${groupName}”. Students in that group can access it now.`)
       onAssigned?.()
-    } catch {
-      setError('Could not assign content to this group.')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status
+      if (status === 409) {
+        setGroups((prev) =>
+          prev.map((group) =>
+            group.id === groupId ? { ...group, project_assigned: true } : group,
+          ),
+        )
+        setError(`“${groupName}” already has this project assigned.`)
+      } else {
+        setError('Could not assign content to this group.')
+      }
     } finally {
       setAssigningId(null)
     }
@@ -114,24 +129,36 @@ export function AssignToGroupModal({
 
       {!loading && groups.length > 0 && (
         <ul className="assign-modal-list">
-          {groups.map((group) => (
-            <li key={group.id} className="assign-modal-item">
-              <div>
-                <span className="assign-modal-name">{group.name}</span>
-                <span className="assign-modal-meta">
-                  {group.member_count} student{group.member_count === 1 ? '' : 's'}
-                </span>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={assigningId === group.id}
-                onClick={() => void handleAssign(group.id, group.name)}
+          {groups.map((group) => {
+            const alreadyAssigned = Boolean(group.project_assigned)
+            return (
+              <li
+                key={group.id}
+                className={`assign-modal-item${alreadyAssigned ? ' assign-modal-item-assigned' : ''}`}
               >
-                {assigningId === group.id ? 'Assigning…' : 'Assign'}
-              </Button>
-            </li>
-          ))}
+                <div>
+                  <span className="assign-modal-name">{group.name}</span>
+                  <span className="assign-modal-meta">
+                    {group.member_count} student{group.member_count === 1 ? '' : 's'}
+                  </span>
+                </div>
+                {alreadyAssigned ? (
+                  <span className="assign-modal-assigned-badge" role="status">
+                    Already assigned
+                  </span>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={assigningId === group.id}
+                    onClick={() => void handleAssign(group.id, group.name)}
+                  >
+                    {assigningId === group.id ? 'Assigning…' : 'Assign'}
+                  </Button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </Modal>

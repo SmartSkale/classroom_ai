@@ -1,6 +1,12 @@
 import { jsPDF } from 'jspdf'
 import type { Flashcard } from '../services/generationService'
 
+const CARD_PADDING = 12
+const LABEL_WIDTH = 22
+const LINE_HEIGHT = 14
+const BODY_FONT_SIZE = 11
+const LABEL_FONT_SIZE = 12
+
 /**
  * Build a printable flashcard PDF and return the raw bytes (for ZIP bundles).
  */
@@ -34,6 +40,8 @@ function buildFlashcardsDoc(topic: string, cards: Flashcard[], order: number[]) 
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 48
   const contentWidth = pageWidth - margin * 2
+  const textX = margin + CARD_PADDING + LABEL_WIDTH
+  const textMaxWidth = contentWidth - CARD_PADDING * 2 - LABEL_WIDTH
   let y = margin
 
   doc.setFont('helvetica', 'bold')
@@ -54,13 +62,23 @@ function buildFlashcardsDoc(topic: string, cards: Flashcard[], order: number[]) 
     }
   }
 
+  const splitBodyText = (value: string) => {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(BODY_FONT_SIZE)
+    return doc.splitTextToSize(value, textMaxWidth)
+  }
+
   order.forEach((cardIndex, position) => {
     const card = cards[cardIndex]
     if (!card) return
 
-    const frontLines = doc.splitTextToSize(card.front, contentWidth - 16)
-    const backLines = doc.splitTextToSize(card.back, contentWidth - 16)
-    const blockHeight = 28 + frontLines.length * 14 + 18 + backLines.length * 14 + 24
+    const frontLines = splitBodyText(card.front)
+    const backLines = splitBodyText(card.back)
+    const headerHeight = 28
+    const frontHeight = frontLines.length * LINE_HEIGHT
+    const backHeight = backLines.length * LINE_HEIGHT
+    const blockHeight =
+      headerHeight + frontHeight + 10 + backHeight + CARD_PADDING * 2
 
     ensureSpace(blockHeight)
     const top = y
@@ -69,30 +87,32 @@ function buildFlashcardsDoc(topic: string, cards: Flashcard[], order: number[]) 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(90)
-    doc.text(`Card ${position + 1}`, margin + 8, y + 18)
+    doc.text(`Card ${position + 1}`, margin + CARD_PADDING, y + 16)
     doc.setTextColor(0)
-    y += 28
+    y += headerHeight
 
     // Front (question)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text('Q:', margin + 8, y)
+    doc.setFontSize(LABEL_FONT_SIZE)
+    doc.text('Q:', margin + CARD_PADDING, y)
     doc.setFont('helvetica', 'normal')
-    doc.text(frontLines, margin + 28, y)
-    y += frontLines.length * 14 + 12
+    doc.setFontSize(BODY_FONT_SIZE)
+    doc.text(frontLines, textX, y, { maxWidth: textMaxWidth, lineHeightFactor: 1.2 })
+    y += frontHeight + 10
 
     // Back (answer)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text('A:', margin + 8, y)
+    doc.setFontSize(LABEL_FONT_SIZE)
+    doc.text('A:', margin + CARD_PADDING, y)
     doc.setFont('helvetica', 'normal')
-    doc.text(backLines, margin + 28, y)
-    y += backLines.length * 14 + 12
+    doc.setFontSize(BODY_FONT_SIZE)
+    doc.text(backLines, textX, y, { maxWidth: textMaxWidth, lineHeightFactor: 1.2 })
+    y += backHeight + CARD_PADDING
 
     // Border around the card block
     doc.setDrawColor(210)
-    doc.roundedRect(margin, top, contentWidth, y - top + 4, 6, 6)
-    y += 18
+    doc.roundedRect(margin, top, contentWidth, y - top, 6, 6)
+    y += CARD_PADDING
   })
 
   return doc

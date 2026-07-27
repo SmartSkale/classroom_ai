@@ -8,7 +8,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProjectJob } from '../../hooks/useProjectJob'
 import { quizService, type QuizQuestion, type QuizSettings } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
-import { publishSharedProject } from '../../utils/sharedProjects'
 import { isStudent } from '../../utils/roles'
 import { getStepFailure } from '../../utils/projectStatus'
 import {
@@ -109,17 +108,6 @@ export function Quiz() {
     a.remove()
     URL.revokeObjectURL(url)
     showToast({ type: 'success', message: 'Quiz downloaded.' })
-  }
-
-  async function handleShare() {
-    if (job) publishSharedProject(job)
-    const link = `${window.location.origin}/q/${id}`
-    try {
-      await navigator.clipboard.writeText(link)
-      showToast({ type: 'success', message: 'Quiz link copied to clipboard.' })
-    } catch {
-      showToast({ type: 'error', message: 'Could not copy link. Please try again.' })
-    }
   }
 
   return (
@@ -233,10 +221,7 @@ export function Quiz() {
                   <Button variant="primary" onClick={handleDownload}>
                     Download
                   </Button>
-                  <Button variant="outline" onClick={handleShare}>
-                    Share with Students
-                  </Button>
-                  <Button variant="ghost" onClick={handleRegenerate}>
+                  <Button variant="outline" onClick={handleRegenerate}>
                     Regenerate
                   </Button>
                 </>

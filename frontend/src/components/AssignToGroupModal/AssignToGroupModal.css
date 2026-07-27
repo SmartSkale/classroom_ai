@@ -39,6 +39,21 @@
   background: var(--surface);
 }
 
+.assign-modal-item-assigned {
+  background: color-mix(in srgb, var(--success, #1e7e34) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--success, #1e7e34) 35%, var(--border));
+}
+
+.assign-modal-assigned-badge {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--success, #1e7e34);
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success, #1e7e34) 12%, transparent);
+}
+
 .assign-modal-name {
   display: block;
   font-weight: 600;

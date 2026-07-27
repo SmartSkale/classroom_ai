@@ -33,6 +33,7 @@ class GroupResponse(BaseModel):
     updated_at: datetime
     member_count: int = 0
     assignment_count: int = 0
+    project_assigned: bool = False
 
     model_config = {"from_attributes": True}
 
