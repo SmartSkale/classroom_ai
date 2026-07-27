@@ -1,3 +1,5 @@
+import { VALID_TLDS } from '../data/validTlds'
+
 const EMAIL_LOCAL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/
 const EMAIL_DOMAIN_RE =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
@@ -27,11 +29,11 @@ export function isValidEmail(value: string): boolean {
   const labels = domain.split('.')
   if (labels.some((label) => label.length < 2)) return false
 
-  const tld = labels[labels.length - 1]
-  if (!/^[a-zA-Z]+$/.test(tld)) return false
+  const tld = labels[labels.length - 1].toLowerCase()
+  if (!/^[a-z]+$/.test(tld)) return false
+  if (!VALID_TLDS.has(tld)) return false
   // Reject partial domains like user@gmail.co; allow multi-part domains like bbc.co.uk.
   if (tld.length < 3 && labels.length < 3) return false
-  if (tld.length < 2) return false
 
   return true
 }

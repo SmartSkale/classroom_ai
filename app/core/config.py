@@ -5,9 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # `.env` overrides `.env.example`. Only `.env` should hold real secrets (gitignored).
+    # Load only `.env` at runtime. Copy from `.env.example` when setting up the project.
     model_config = SettingsConfigDict(
-        env_file=(".env.example", ".env"),
+        env_file=".env",
         extra="ignore",
     )
 
@@ -48,8 +48,11 @@ class Settings(BaseSettings):
     # JWT auth — set SECRET_KEY in .env for production
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 2
+    access_token_expire_minutes: int = 15
     password_reset_expire_minutes: int = 30
+
+    # Reject signup/login emails whose domain has no DNS records (blocks fake domains).
+    email_check_deliverability: bool = True
 
     # Optional bootstrap admin (created on startup if no admin exists)
     bootstrap_admin_email: str | None = None

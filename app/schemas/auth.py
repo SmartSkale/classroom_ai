@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
+from app.core.email_validation import normalize_and_validate_email
 from app.models.user import UserRole
 
 _PASSWORD_UPPER = re.compile(r"[A-Z]")
@@ -15,10 +16,20 @@ class UserRegister(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     role: UserRole = UserRole.student
 
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return normalize_and_validate_email(value)
+
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return normalize_and_validate_email(value)
 
 
 class TokenResponse(BaseModel):
@@ -40,6 +51,13 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=80)
     email: EmailStr | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_and_validate_email(value)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> "UserUpdate":
@@ -78,6 +96,11 @@ class PasswordChange(BaseModel):
 
 class PasswordForgotRequest(BaseModel):
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return normalize_and_validate_email(value)
 
 
 class PasswordResetRequest(BaseModel):

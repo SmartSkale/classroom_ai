@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, DbSession, require_roles
+from app.core.email_validation import normalize_and_validate_email
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User, UserRole
 from app.schemas.auth import (
@@ -56,9 +57,18 @@ async def register(body: UserRegister, db: DbSession) -> User:
 
 @router.post("/login", response_model=TokenResponse)
 async def login(db: DbSession, form_data: OAuth2PasswordRequestForm = Depends()) -> TokenResponse:
+    try:
+        login_email = normalize_and_validate_email(form_data.username)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # bcrypt verification and sync SQLAlchemy calls block; run them off the event loop.
     def _authenticate() -> User:
-        user = db.query(User).filter(User.email == form_data.username.lower()).first()
+        user = db.query(User).filter(User.email == login_email).first()
         if not user or not verify_password(form_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
