@@ -3,6 +3,7 @@ import type { GenerationJob } from '../context/generation-context'
 import type { QuizQuestion } from '../services/quizService'
 import { generationService } from '../services/generationService'
 import { OUTPUT_TYPES, type OutputTypeId } from './constants'
+import { formatStepError } from './projectStatus'
 import { buildFlashcardsPdfBlob } from './flashcardPdf'
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -184,7 +185,7 @@ export async function buildProjectBundle(
     if (step?.status === 'failed') {
       skipped.push({
         output: outputLabel(task.output),
-        reason: step.error ?? 'Generation failed',
+        reason: formatStepError(step.error),
       })
       continue
     }

@@ -4,6 +4,7 @@ import { Button } from '../../components/Button'
 import { DownloadAllButton } from '../../components/DownloadAllButton'
 import { Modal } from '../../components/Modal'
 import { useGeneration, type GenerationJob, type StepStatus } from '../../context/generation-context'
+import { formatStepError } from '../../utils/projectStatus'
 import {
   ROUTES,
   audioRoute,
@@ -106,8 +107,10 @@ export function Processing() {
       {failedStep && (
         <div className="processing-alert" role="alert">
           {failedStep.label.replace('Generating ', '')} failed
-          {failedStep.error ? `: ${failedStep.error}` : '.'} Other outputs were generated
-          where possible.
+          {failedStep.error !== undefined
+            ? `: ${formatStepError(failedStep.error)}`
+            : '.'}{' '}
+          Other outputs were generated where possible.
         </div>
       )}
 

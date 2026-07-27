@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import { downloadFlashcardsPdf } from '../../utils/flashcardPdf'
 import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../utils/constants'
 import { isStudent } from '../../utils/roles'
+import { getStepFailure } from '../../utils/projectStatus'
 import './Flashcards.css'
 
 interface Toast {
@@ -38,8 +41,8 @@ export function Flashcards() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
-  const { jobs, cacheResults } = useGeneration()
-  const job = jobs[id]
+  const { cacheResults } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -156,15 +159,31 @@ export function Flashcards() {
         )}
       </nav>
 
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <p className="flashcards-error" role="alert">
+          {loadError}
+        </p>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="flashcards" />}
+
       {total === 0 ? (
         <div className="flashcards-empty">
           {generating ? (
             <Loader label="Generating flashcards…" />
           ) : (
             <>
-              <p>{studentView ? 'Flashcards are not available for this lesson yet.' : 'No flashcards yet for this project.'}</p>
+              {!getStepFailure(job, 'flashcards') && (
+                <p>
+                  {studentView
+                    ? 'Flashcards are not available for this lesson yet.'
+                    : 'No flashcards yet for this project.'}
+                </p>
+              )}
               {genError && <p className="flashcards-error">{genError}</p>}
-              {!studentView && (
+              {!studentView && !getStepFailure(job, 'flashcards') && (
                 <Button variant="primary" onClick={handleGenerate}>
                   Generate Flashcards
                 </Button>

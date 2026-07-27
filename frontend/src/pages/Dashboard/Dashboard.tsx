@@ -4,8 +4,10 @@ import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
+import { useGeneration } from '../../context/generation-context'
 import { StudentDashboard } from '../StudentDashboard'
 import { projectService, type Project } from '../../services/projectService'
+import { getProjectRunStatus } from '../../utils/projectStatus'
 import { ROUTES, projectRoute } from '../../utils/constants'
 import { formatRelativeTime } from '../../utils/formatDate'
 import { canCreateContent, getDashboardSubtitle } from '../../utils/roles'
@@ -26,6 +28,7 @@ const TYPE_META: Record<ProjectType, { label: string; icon: string; className: s
 export function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { jobs } = useGeneration()
 
   const fetchProjects = useCallback(() => projectService.getRecentProjects(6), [])
   const fetchUsage = useCallback(() => projectService.getUsage(), [])
@@ -79,6 +82,7 @@ export function Dashboard() {
           <div className="project-grid">
             {projects.map((project) => {
               const meta = TYPE_META[project.type]
+              const runStatus = getProjectRunStatus(jobs[project.id])
               return (
                 <button
                   key={project.id}
@@ -97,6 +101,12 @@ export function Dashboard() {
                       <span className="project-date">
                         {formatRelativeTime(project.updatedAt)}
                       </span>
+                      {runStatus === 'in_progress' && (
+                        <span className="project-status">In progress</span>
+                      )}
+                      {(runStatus === 'failed' || runStatus === 'partial') && (
+                        <span className="project-status project-status-failed">Has failures</span>
+                      )}
                     </div>
                     <span className="project-outputs-count">
                       {project.outputs.length} output{project.outputs.length === 1 ? '' : 's'}

@@ -1,6 +1,6 @@
 """
 Extract text from PDFs page-by-page: native text, tables (pdfplumber),
-optional OCR (Tesseract), and handwriting OCR (EasyOCR).
+and OCR (Tesseract) for printed scans and handwritten notes.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import fitz  # PyMuPDF
 import pdfplumber
 
 from app.core.config import get_settings
-from app.services.handwriting_ocr import ocr_handwriting
+from app.services.handwriting_ocr import ocr_handwriting, tesseract_ocr
 
 _MAX_PAGES = 100
 _MAX_OUTPUT_CHARS = 120_000
@@ -134,21 +134,7 @@ _HANDWRITTEN_PDF_PRINTED_MODE_ERROR = (
 
 
 def _ocr_image(pil_img) -> str | None:
-    try:
-        import pytesseract
-    except ImportError:
-        return None
-    try:
-        pytesseract.get_tesseract_version()
-    except Exception:
-        return None
-    try:
-        return pytesseract.image_to_string(pil_img, lang="eng+hin").strip()
-    except Exception:
-        try:
-            return pytesseract.image_to_string(pil_img, lang="eng").strip()
-        except Exception:
-            return None
+    return tesseract_ocr(pil_img, lang="eng+hin")
 
 
 def _ocr_from_pixmap(pix: fitz.Pixmap) -> str | None:
@@ -340,7 +326,7 @@ def extract_pdf_to_text(
         if use_handwriting or auto_handwriting:
             raise ValueError(
                 "No text could be extracted from this handwritten PDF. "
-                "Ensure EasyOCR is installed (pip install easyocr) and HANDWRITING_OCR_ENABLED=true."
+                "Ensure Tesseract is installed (system binary + pytesseract) and HANDWRITING_OCR_ENABLED=true."
             )
         raise ValueError("No text could be extracted from this PDF. Try OCR with Tesseract installed.")
 

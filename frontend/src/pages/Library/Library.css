@@ -132,6 +132,10 @@
   font-weight: 600;
 }
 
+.library-status-failed {
+  color: var(--danger);
+}
+
 .library-outputs {
   display: flex;
   flex-wrap: wrap;

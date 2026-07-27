@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { quizService, type QuizQuestion, type QuizSettings } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
 import { publishSharedProject } from '../../utils/sharedProjects'
 import { isStudent } from '../../utils/roles'
+import { getStepFailure } from '../../utils/projectStatus'
 import {
   DIFFICULTIES,
   QUIZ_COUNT_OPTIONS,
@@ -29,9 +32,9 @@ export function Quiz() {
   const { id = '' } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { jobs, cacheResults } = useGeneration()
+  const { cacheResults } = useGeneration()
   const { user } = useAuth()
-  const job = jobs[id]
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const studentView = isStudent(user)
   const navState = location.state as { name?: string; text?: string } | null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -172,6 +175,16 @@ export function Quiz() {
         <section className={`quiz-preview${studentView ? ' quiz-preview-full' : ''}`} aria-label="Quiz preview">
           <h2 className="quiz-preview-title">Preview</h2>
 
+          {jobLoading && <Loader label="Loading project…" />}
+
+          {!jobLoading && loadError && (
+            <div className="quiz-error-box" role="alert">
+              <p>{loadError}</p>
+            </div>
+          )}
+
+          {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="quiz" />}
+
           {loading && <Loader label="Generating quiz…" />}
 
           {!loading && error && (
@@ -183,7 +196,7 @@ export function Quiz() {
             </div>
           )}
 
-          {!loading && !error && !questions && (
+          {!loading && !error && !questions && !getStepFailure(job, 'quiz') && (
             <div className="quiz-error-box">
               <p>No quiz available yet. Adjust the settings and generate one.</p>
               <Button variant="primary" size="sm" onClick={handleRegenerate}>

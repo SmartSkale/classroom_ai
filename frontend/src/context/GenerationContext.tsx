@@ -10,6 +10,7 @@ import { generationService } from '../services/generationService'
 import { projectService } from '../services/projectService'
 import { useAuth } from '../hooks/useAuth'
 import { canCreateContent } from '../utils/roles'
+import { formatStepError } from '../utils/projectStatus'
 import {
   GenerationContext,
   type GenerationJob,
@@ -39,6 +40,10 @@ function normalizeJob(job: GenerationJob): GenerationJob {
   return {
     ...job,
     outputLanguage: normalizeOutputLanguage(job.outputLanguage),
+    steps: (job.steps ?? []).map((step) => ({
+      ...step,
+      error: step.error !== undefined ? formatStepError(step.error) : undefined,
+    })),
   }
 }
 
@@ -62,8 +67,10 @@ function recompute(steps: GenerationStep[]): { progress: number; done: boolean }
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'response' in err) {
-    const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-    if (detail) return detail
+    const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+    if (detail !== undefined && detail !== null) {
+      return formatStepError(detail)
+    }
   }
   if (err instanceof Error) return err.message
   return 'Generation failed.'
@@ -491,6 +498,21 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const loadProject = useCallback(async (id: string): Promise<GenerationJob | undefined> => {
+    const existing = jobsRef.current[id]
+    if (existing) return existing
+
+    try {
+      const project = await projectService.getProject(id)
+      if (!isGenerationJob(project.job)) return undefined
+      const normalized = normalizeJob({ ...project.job, id: project.id })
+      setJobs((prev) => ({ ...prev, [id]: normalized }))
+      return normalized
+    } catch {
+      return undefined
+    }
+  }, [])
+
   return (
     <GenerationContext.Provider
       value={{
@@ -502,6 +524,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         cacheResults,
         importSharedJob,
         deleteProject,
+        loadProject,
       }}
     >
       {children}

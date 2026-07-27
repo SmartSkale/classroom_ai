@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
-import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import { useAuth } from '../../hooks/useAuth'
 import { isStudent } from '../../utils/roles'
 import { ROUTES, projectRoute } from '../../utils/constants'
+import { getStepFailure } from '../../utils/projectStatus'
 import './Video.css'
 
 const POLL_MS = 3000
@@ -23,8 +25,7 @@ export function Video() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
-  const { jobs } = useGeneration()
-  const job = jobs[id]
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -118,6 +119,7 @@ export function Video() {
   }
 
   if (!cachedVideo) {
+    const videoFailed = getStepFailure(job, 'video')
     return (
       <div className="video-page">
         <nav className="video-breadcrumb" aria-label="Breadcrumb">
@@ -127,12 +129,27 @@ export function Video() {
           <span aria-hidden="true">/</span>
           <span>Video</span>
         </nav>
-        <div className="video-empty">
-          <p>No video was generated for this project.</p>
-          <Button variant="outline" onClick={() => window.history.back()}>
-            Go back
-          </Button>
-        </div>
+
+        {jobLoading && <Loader label="Loading project…" />}
+
+        {!jobLoading && loadError && (
+          <div className="video-error" role="alert">
+            {loadError}
+          </div>
+        )}
+
+        {!jobLoading && !loadError && videoFailed && (
+          <ProjectFailures job={job} stepKey="video" />
+        )}
+
+        {!jobLoading && !loadError && !videoFailed && (
+          <div className="video-empty">
+            <p>No video was generated for this project.</p>
+            <Button variant="outline" onClick={() => window.history.back()}>
+              Go back
+            </Button>
+          </div>
+        )}
       </div>
     )
   }

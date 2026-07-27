@@ -359,7 +359,7 @@ export function Upload() {
             ))}
           </div>
           <p className="upload-pdf-type-hint">
-            Handwritten notes use local OCR (EasyOCR) and may take longer on the first upload.
+            Handwritten notes use local OCR (Tesseract) and may take longer on large scans.
             English handwriting only.
           </p>
           {errors.pdfType && <p className="upload-error">{errors.pdfType}</p>}

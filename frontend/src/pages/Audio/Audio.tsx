@@ -3,8 +3,10 @@ import { useAuth } from '../../hooks/useAuth'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import {
   AUDIO_LANGUAGES,
@@ -38,8 +40,8 @@ export function Audio() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
-  const { jobs, cacheResults } = useGeneration()
-  const job = jobs[id]
+  const { cacheResults } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -175,6 +177,16 @@ export function Audio() {
             : 'Generate a narrated audio lesson from your content.'}
         </p>
       </header>
+
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <div className="audio-error-box" role="alert">
+          <p>{loadError}</p>
+        </div>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="audio" />}
 
       {!studentView && (
       <section className="audio-settings" aria-label="Voice settings">

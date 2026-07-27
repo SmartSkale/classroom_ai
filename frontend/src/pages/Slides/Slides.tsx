@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import {
   ROUTES,
@@ -34,8 +36,8 @@ export function Slides() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { jobs, cacheResults } = useGeneration()
-  const job = jobs[id]
+  const { cacheResults } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -97,6 +99,16 @@ export function Slides() {
         <h1 className="slides-title">Slide Settings</h1>
         <p className="slides-subtitle">Configure your deck, then generate a PowerPoint file.</p>
       </header>
+
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <div className="slides-error-box" role="alert">
+          <p>{loadError}</p>
+        </div>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="slides" />}
 
       <section className="slides-settings" aria-label="Slide settings">
         <label className="slides-control">

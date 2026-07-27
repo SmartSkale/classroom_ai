@@ -231,6 +231,19 @@
   color: var(--danger);
 }
 
+.explanation-empty {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.15rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+
+.explanation-empty p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
 /* ---------- Toast ---------- */
 .explanation-toast {
   position: fixed;

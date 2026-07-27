@@ -3,8 +3,10 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import { ROUTES } from '../../utils/constants'
 import './Illustration.css'
@@ -32,8 +34,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function Illustration() {
   const { id = '' } = useParams()
   const location = useLocation()
-  const { jobs, cacheResults } = useGeneration()
-  const job = jobs[id]
+  const { cacheResults } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -116,6 +118,16 @@ export function Illustration() {
         <span aria-hidden="true">›</span>
         <span className="illustration-breadcrumb-current">Illustration</span>
       </nav>
+
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <div className="illustration-error-box" role="alert">
+          <p>{loadError}</p>
+        </div>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="illustration" />}
 
       <section className="illustration-settings" aria-label="Illustration settings">
         <p className="illustration-hint">

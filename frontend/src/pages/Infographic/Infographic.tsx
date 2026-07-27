@@ -3,8 +3,10 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import { generationService } from '../../services/generationService'
 import {
   INFOGRAPHIC_COLORS,
@@ -38,8 +40,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function Infographic() {
   const { id = '' } = useParams()
   const location = useLocation()
-  const { jobs, cacheResults } = useGeneration()
-  const job = jobs[id]
+  const { cacheResults } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -129,6 +131,16 @@ export function Infographic() {
         <span aria-hidden="true">›</span>
         <span className="infographic-breadcrumb-current">Infographic</span>
       </nav>
+
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <div className="infographic-error-box" role="alert">
+          <p>{loadError}</p>
+        </div>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="infographic" />}
 
       <section className="infographic-settings" aria-label="Infographic settings">
         <label className="infographic-control">

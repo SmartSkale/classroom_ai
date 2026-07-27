@@ -67,7 +67,7 @@ ClassroomAI uses **two types of AI**:
 ### The Flow: What Happens Inside
 
 1. **User uploads** chapter text, PDF, or screenshots
-2. **Backend extracts** text (handles PDFs with tables, Tesseract OCR for printed scans, EasyOCR for handwritten notes)
+2. **Backend extracts** text (handles PDFs with tables, Tesseract OCR for printed scans and handwritten notes)
 3. **LLM processes** the text and creates an explanation
 4. **Other modules reuse** this explanation to create:
    - Quiz questions
@@ -168,7 +168,7 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 ### 1. **Learn (Explanation Module)**
 - **Input**: Chapter text, PDF, or images of textbook pages
 - **Output**: Structured explanation in your chosen **output language**
-- **PDF types**: **Printed/typed PDFs** use native text + Tesseract; **handwritten note PDFs** use EasyOCR (English handwriting)
+- **PDF types**: **Printed/typed PDFs** use native text + Tesseract; **handwritten note PDFs** use Tesseract with handwriting preprocessing (English)
 - **Languages supported**: English, Hindi, Bengali, Marathi, Telugu, Tamil, and Roman Hindi (Hinglish) — selected on **Upload** and applied across explanation, quiz, slides, flashcards, audio, and more
 - **Bonus**: Auto-generates Mermaid diagrams for processes
 - **Best For**: Understanding new topics
@@ -271,8 +271,7 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 5. **Optional**:
    - [Pexels API](https://www.pexels.com/api/) key for stock photos in slides
    - Stable Diffusion WebUI for local image generation
-   - **EasyOCR** (installed via `pip install -r requirements.txt`) for handwritten English PDFs — first run downloads ~100–200 MB of models
-   - **Tesseract** (system install) for printed/scanned textbook PDFs — optional but recommended
+   - **Tesseract** (system install) for printed/scanned textbook PDFs and handwritten English PDFs — recommended
    - SMTP credentials (e.g. Gmail App Password) for password-reset emails and group/assignment notifications
 
 > **Auth today:** email + password with JWT (not Google Sign-In).  
@@ -353,10 +352,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 # FRONTEND_URL=http://localhost:5173
 # PASSWORD_RESET_EXPIRE_MINUTES=30
 
-# Handwriting OCR (EasyOCR — English handwritten PDFs)
+# Handwriting OCR (Tesseract — English handwritten PDFs)
 HANDWRITING_OCR_ENABLED=true
 HANDWRITING_OCR_MIN_WORDS_PER_PAGE=15
 HANDWRITING_OCR_RENDER_SCALE=2.5
+HANDWRITING_OCR_TESSERACT_PSM=6
 ```
 
 **Notes:**
@@ -735,8 +735,8 @@ classroom_ai/
 │   │   ├── flashcards.py         # Creates flashcards
 │   │   ├── tts.py                # Text-to-speech
 │   │   ├── infographic.py        # Infographic generation
-│   │   ├── pdf_extract.py        # PDF text + tables + Tesseract + EasyOCR handwriting
-│   │   ├── handwriting_ocr.py    # EasyOCR wrapper for handwritten English pages
+│   │   ├── pdf_extract.py        # PDF text + tables + Tesseract OCR (printed + handwriting)
+│   │   ├── handwriting_ocr.py    # Tesseract wrapper for handwritten English pages
 │   │   ├── pexels_stock.py       # Pexels stock photo helpers
 │   │   ├── video_openai.py       # OpenAI / Sora video
 │   │   ├── video_opensource.py   # Local / ffmpeg video pipeline
@@ -921,17 +921,16 @@ pip install -r requirements.txt
 
 **Solution:**
 - On **Upload**, select **Handwritten notes (scanned or photo PDF)** when uploading a handwritten PDF
-- Ensure EasyOCR is installed: `pip install easyocr>=1.7.0` (included in `requirements.txt`)
-- First upload may be slow while EasyOCR downloads English models (~100–200 MB)
+- Ensure Tesseract is installed on your system (`brew install tesseract` on macOS, `apt install tesseract-ocr` on Linux) and `pytesseract` is in your Python env (`pip install -r requirements.txt`)
 - Handwriting OCR is **English only**; use printed PDF mode or paste typed text for other languages
 - Set `HANDWRITING_OCR_ENABLED=true` in `.env` (default) and restart uvicorn
-- Without EasyOCR, auto mode still tries Tesseract for printed scans only
+- Without Tesseract, auto mode cannot extract handwritten pages
 - You can edit extracted source text on the **Explanation** page after upload if OCR missed a few words
 
 ### Problem: Handwritten PDF extraction is very slow
 
 **Solution:**
-- EasyOCR runs on CPU by default (~5–15 seconds per page); expect longer processing on first run
+- Tesseract runs on CPU (~3–10 seconds per page depending on resolution)
 - Keep PDFs to a reasonable page count (backend processes up to 100 pages)
 - For faster iteration, photograph fewer pages or paste typed notes instead
 
@@ -968,8 +967,7 @@ pip install -r requirements.txt
 | **Ollama** | Local AI | Runs AI models locally |
 | **python-pptx** | PowerPoint | Creates slide decks |
 | **pdfplumber** | PDF reading | Extracts text and tables from printed PDFs |
-| **pytesseract + Tesseract** | Printed OCR | Scanned textbook pages (system binary required) |
-| **EasyOCR** | Handwriting OCR | English handwritten note PDFs (local, CPU) |
+| **pytesseract + Tesseract** | OCR | Scanned printed pages and English handwritten note PDFs (system binary required) |
 | **imageio** | Image processing | Handles video/image creation |
 | **edge-tts** | Text to speech | Free voice narration |
 
@@ -1084,7 +1082,7 @@ pip install -r requirements.txt
 - Alembic migrations for production database upgrades
 - Mobile app
 
-**Recently added:** handwritten PDF parsing (EasyOCR), password reset (forgot/reset password flow + SMTP), Settings page (theme + change password), multi-language output (7 Indian languages + English), refreshed UI (logo, auth screens, sidebar), server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
+**Recently added:** handwritten PDF parsing (Tesseract), password reset (forgot/reset password flow + SMTP), Settings page (theme + change password), multi-language output (7 Indian languages + English), refreshed UI (logo, auth screens, sidebar), server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
 
 ---
 
@@ -1183,4 +1181,4 @@ Stop and restart uvicorn (settings are cached; file watch alone is not enough).
 
 **Last Updated**: July 2026  
 **Version**: 1.5  
-**Status**: Handwritten PDF OCR (EasyOCR), password reset, Settings & theme, multi-language output, teacher & student journeys, server Project Library, class groups, server quiz results
+**Status**: Handwritten PDF OCR (Tesseract), password reset, Settings & theme, multi-language output, teacher & student journeys, server Project Library, class groups, server quiz results

@@ -9,6 +9,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useGeneration } from '../../context/generation-context'
 import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Project } from '../../services/projectService'
+import { getProjectRunStatus } from '../../utils/projectStatus'
 import {
   OUTPUT_TYPES,
   ROUTES,
@@ -173,7 +174,16 @@ export function Library() {
                     <span className="library-meta">
                       <span className={`library-badge ${meta.className}`}>{meta.label}</span>
                       <span>{formatRelativeTime(project.updatedAt)}</span>
-                      {!project.done && <span className="library-status">In progress</span>}
+                      {(() => {
+                        const runStatus = getProjectRunStatus(jobs[project.id])
+                        if (runStatus === 'in_progress') {
+                          return <span className="library-status">In progress</span>
+                        }
+                        if (runStatus === 'failed' || runStatus === 'partial') {
+                          return <span className="library-status library-status-failed">Has failures</span>
+                        }
+                        return null
+                      })()}
                     </span>
                   </span>
                 </button>

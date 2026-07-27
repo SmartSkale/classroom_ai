@@ -4,17 +4,19 @@ import ReactMarkdown from 'react-markdown'
 import { Button } from '../../components/Button'
 import { DownloadAllButton } from '../../components/DownloadAllButton'
 import { Loader } from '../../components/Loader'
+import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
+import { useProjectJob } from '../../hooks/useProjectJob'
 import {
   explanationService,
   type Explanation as ExplanationData,
 } from '../../services/explanationService'
-import { useGeneration } from '../../context/generation-context'
 import {
   ROUTES,
   quizTakeRoute,
 } from '../../utils/constants'
+import { getStepFailure, hasProjectFailures } from '../../utils/projectStatus'
 import { isStudent } from '../../utils/roles'
 import './Explanation.css'
 
@@ -31,9 +33,8 @@ export function Explanation() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { jobs } = useGeneration()
+  const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const { user } = useAuth()
-  const job = jobs[id]
   const studentView = isStudent(user)
   const navState = location.state as { name?: string; text?: string } | null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -48,7 +49,8 @@ export function Explanation() {
   const [content, setContent] = useState<ExplanationData | null>(cachedExplanation)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [inputOpen, setInputOpen] = useState(!cachedExplanation)
+  const explanationFailed = getStepFailure(job, 'explanation')
+  const [inputOpen, setInputOpen] = useState(!cachedExplanation && !explanationFailed)
 
   const explanation = content ?? job?.results.explanation ?? null
 
@@ -93,6 +95,10 @@ export function Explanation() {
     if (job?.results.explanation) {
       setContent(job.results.explanation)
       setInputOpen(false)
+    } else if (getStepFailure(job, 'explanation')) {
+      setInputOpen(false)
+    } else if (job && !job.results.explanation) {
+      setInputOpen(true)
     }
     if (job?.sourceText) {
       setChapterText(job.sourceText)
@@ -173,6 +179,16 @@ export function Explanation() {
         </div>
       </header>
 
+      {jobLoading && <Loader label="Loading project…" />}
+
+      {!jobLoading && loadError && (
+        <div className="explanation-error" role="alert">
+          <p>{loadError}</p>
+        </div>
+      )}
+
+      {!jobLoading && !loadError && <ProjectFailures job={job} />}
+
       {inputOpen && (
         <section className="explanation-input">
           <label className="explanation-field">
@@ -231,7 +247,7 @@ export function Explanation() {
             </section>
           )}
 
-          {explanation.examples.length > 0 && (
+          {explanation.examples?.length > 0 && (
             <section className="explanation-extra">
               <h2 className="explanation-section-title">Simple Examples</h2>
               <ul>
@@ -242,7 +258,7 @@ export function Explanation() {
             </section>
           )}
 
-          {explanation.followups.length > 0 && (
+          {explanation.followups?.length > 0 && (
             <section className="explanation-extra">
               <h2 className="explanation-section-title">Suggested Follow-up Topics</h2>
               <ul>
@@ -276,15 +292,35 @@ export function Explanation() {
               </Button>
             )}
           </div>
-
-          <ProjectOutputNav
-            projectId={id}
-            activeOutput="explanation"
-            projectName={projectName}
-            sourceText={chapterText || undefined}
-            studentView={studentView}
-          />
         </>
+      )}
+
+      {!jobLoading && !loadError && !loading && !error && !explanation && job && (
+        <section className="explanation-empty" aria-label="No explanation available">
+          {hasProjectFailures(job) ? (
+            <p>
+              The explanation could not be generated. Review the issues above, then try again with
+              different content or regenerate the project from your Library.
+            </p>
+          ) : (
+            <p>No explanation is available for this project yet.</p>
+          )}
+          {!studentView && (
+            <Button variant="primary" size="sm" onClick={() => setInputOpen(true)}>
+              {hasProjectFailures(job) ? 'Try again manually' : 'Generate explanation'}
+            </Button>
+          )}
+        </section>
+      )}
+
+      {!jobLoading && job && (
+        <ProjectOutputNav
+          projectId={id}
+          activeOutput="explanation"
+          projectName={projectName}
+          sourceText={chapterText || undefined}
+          studentView={studentView}
+        />
       )}
 
       {toast && (

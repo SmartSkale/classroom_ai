@@ -49,7 +49,7 @@ export interface GenerateExplanationFromFileParams {
   topicHint?: string
   stack?: string
   outputLanguage?: OutputLanguage
-  /** PDF only: printed (default path) or handwritten (EasyOCR). Omit for auto on backend. */
+  /** PDF only: printed (default path) or handwritten (Tesseract). Omit for auto on backend. */
   documentType?: PdfDocumentTypeId | 'auto'
 }
 

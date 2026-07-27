@@ -54,7 +54,7 @@ export interface StartGenerationInput {
   files?: File[]
   outputs: OutputTypeId[]
   outputLanguage: OutputLanguageId
-  /** When uploading a PDF: printed or handwritten (EasyOCR). Defaults to auto on backend. */
+  /** When uploading a PDF: printed or handwritten (Tesseract). Defaults to auto on backend. */
   documentType?: 'auto' | 'printed' | 'handwritten'
 }
 
@@ -73,6 +73,8 @@ export interface GenerationContextValue {
   importSharedJob: (job: GenerationJob) => void
   /** Delete a project from the database and in-memory cache. */
   deleteProject: (id: string) => Promise<void>
+  /** Fetch a single project into the in-memory cache when it is not already loaded. */
+  loadProject: (id: string) => Promise<GenerationJob | undefined>
 }
 
 export const GenerationContext = createContext<GenerationContextValue | null>(null)

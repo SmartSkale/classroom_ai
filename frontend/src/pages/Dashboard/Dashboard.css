@@ -115,6 +115,16 @@
   color: var(--muted);
 }
 
+.project-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.project-status-failed {
+  color: var(--danger);
+}
+
 /* Type accents */
 .type-pdf {
   color: #f87171;
