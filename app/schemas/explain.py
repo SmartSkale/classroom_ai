@@ -73,7 +73,7 @@ class ExplainResponse(BaseModel):
     )
     pdf_extraction_notes: str | None = Field(
         default=None,
-        description="When explain came from a PDF upload: short summary (pages, tables, OCR).",
+        description="When explain came from a PDF upload: short summary (pages, tables).",
     )
     source_text_used_for_context: str | None = Field(
         default=None,

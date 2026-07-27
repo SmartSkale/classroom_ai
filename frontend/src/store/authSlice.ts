@@ -6,6 +6,7 @@ import authService, {
   type ChangePasswordPayload,
 } from '../services/authService'
 import { TOKEN_STORAGE_KEY } from '../utils/constants'
+import { isTokenExpired } from '../utils/jwt'
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'error'
 
@@ -30,11 +31,16 @@ function persistToken(token: string | null) {
 }
 
 const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
+if (storedToken && isTokenExpired(storedToken)) {
+  localStorage.removeItem(TOKEN_STORAGE_KEY)
+}
+const initialToken =
+  storedToken && !isTokenExpired(storedToken) ? storedToken : null
 
 export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
   user: null,
-  token: storedToken,
-  status: storedToken ? 'loading' : 'idle',
+  token: initialToken,
+  status: initialToken ? 'loading' : 'idle',
   error: null,
 
   login: async (email, password) => {
@@ -72,7 +78,8 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
 
   loadSession: async () => {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!token) {
+    if (!token || isTokenExpired(token)) {
+      persistToken(null)
       set({ status: 'idle', token: null, user: null })
       return
     }

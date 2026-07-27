@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # JWT auth — set SECRET_KEY in .env for production
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30 #60 * 24 * 7  # 7 days
+    access_token_expire_minutes: int = 2
     password_reset_expire_minutes: int = 30
 
     # Optional bootstrap admin (created on startup if no admin exists)
@@ -64,12 +64,6 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     email_from: str = "Classroom AI <noreply@example.com>"
     frontend_url: str = "http://localhost:5173"
-
-    # Handwriting OCR (Tesseract) for scanned handwritten PDFs
-    handwriting_ocr_enabled: bool = True
-    handwriting_ocr_min_words_per_page: int = 15
-    handwriting_ocr_render_scale: float = 2.5
-    handwriting_ocr_tesseract_psm: int = 6
 
 
 @lru_cache

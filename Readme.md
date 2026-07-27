@@ -67,7 +67,7 @@ ClassroomAI uses **two types of AI**:
 ### The Flow: What Happens Inside
 
 1. **User uploads** chapter text, PDF, or screenshots
-2. **Backend extracts** text (handles PDFs with tables, Tesseract OCR for printed scans and handwritten notes)
+2. **Backend extracts** text (handles PDFs with tables)
 3. **LLM processes** the text and creates an explanation
 4. **Other modules reuse** this explanation to create:
    - Quiz questions
@@ -168,7 +168,7 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 ### 1. **Learn (Explanation Module)**
 - **Input**: Chapter text, PDF, or images of textbook pages
 - **Output**: Structured explanation in your chosen **output language**
-- **PDF types**: **Printed/typed PDFs** use native text + Tesseract; **handwritten note PDFs** use Tesseract with handwriting preprocessing (English)
+- **PDF extraction**: Native text + tables (pdfplumber)
 - **Languages supported**: English, Hindi, Bengali, Marathi, Telugu, Tamil, and Roman Hindi (Hinglish) — selected on **Upload** and applied across explanation, quiz, slides, flashcards, audio, and more
 - **Bonus**: Auto-generates Mermaid diagrams for processes
 - **Best For**: Understanding new topics
@@ -271,7 +271,6 @@ Quiz scores are stored in the database (not only in the browser), so students ca
 5. **Optional**:
    - [Pexels API](https://www.pexels.com/api/) key for stock photos in slides
    - Stable Diffusion WebUI for local image generation
-   - **Tesseract** (system install) for printed/scanned textbook PDFs and handwritten English PDFs — recommended
    - SMTP credentials (e.g. Gmail App Password) for password-reset emails and group/assignment notifications
 
 > **Auth today:** email + password with JWT (not Google Sign-In).  
@@ -329,7 +328,7 @@ DATABASE_URL=sqlite:///./classroom_ai.db
 
 # --- JWT auth ---
 SECRET_KEY=change-me-to-a-long-random-string
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
+ACCESS_TOKEN_EXPIRE_MINUTES=2
 
 # Optional first admin (only created if no admin exists yet):
 # BOOTSTRAP_ADMIN_EMAIL=admin@example.com
@@ -351,12 +350,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 # EMAIL_FROM=Classroom AI <you@gmail.com>
 # FRONTEND_URL=http://localhost:5173
 # PASSWORD_RESET_EXPIRE_MINUTES=30
-
-# Handwriting OCR (Tesseract — English handwritten PDFs)
-HANDWRITING_OCR_ENABLED=true
-HANDWRITING_OCR_MIN_WORDS_PER_PAGE=15
-HANDWRITING_OCR_RENDER_SCALE=2.5
-HANDWRITING_OCR_TESSERACT_PSM=6
 ```
 
 **Notes:**
@@ -438,7 +431,7 @@ Keep **both** terminals running (backend on `:8000`, frontend on `:5173`).
 ### Teacher workflow (web UI)
 
 1. **Register / log in** as **Teacher** or **Course creator**
-2. **Upload** a chapter (`/upload`) — paste text or drop a PDF; for PDFs choose **Printed / typed** or **Handwritten notes**; choose **output language** and select outputs (explanation, quiz, slides, etc.)
+2. **Upload** a chapter (`/upload`) — paste text or drop a PDF; choose **output language** and select outputs (explanation, quiz, slides, etc.)
 3. **Processing** — watch generation progress; project auto-saves to the server **Project Library**
 4. **Project Library** (`/library`) — open outputs on any device, download ZIP, regenerate, **Assign to Group**, delete
 5. **Class Groups** (`/groups`) — create a group, add student emails, view assignments and **Quiz Scores**
@@ -634,7 +627,7 @@ To generate images locally without API costs:
 1. **Set a secret key** (used to sign JWT tokens):
    - Add to `.env`: `SECRET_KEY=<long-random-string>`
    - Generate one with: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
-2. **Choose token lifetime**: `ACCESS_TOKEN_EXPIRE_MINUTES=10080` (7 days by default)
+2. **Choose token lifetime**: `ACCESS_TOKEN_EXPIRE_MINUTES=2` (2 minutes by default)
 3. **Pick a database**:
    - SQLite (default): `DATABASE_URL=sqlite:///./classroom_ai.db`
    - PostgreSQL: `DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/classroom_ai`
@@ -735,8 +728,7 @@ classroom_ai/
 │   │   ├── flashcards.py         # Creates flashcards
 │   │   ├── tts.py                # Text-to-speech
 │   │   ├── infographic.py        # Infographic generation
-│   │   ├── pdf_extract.py        # PDF text + tables + Tesseract OCR (printed + handwriting)
-│   │   ├── handwriting_ocr.py    # Tesseract wrapper for handwritten English pages
+│   │   ├── pdf_extract.py        # PDF text + tables
 │   │   ├── pexels_stock.py       # Pexels stock photo helpers
 │   │   ├── video_openai.py       # OpenAI / Sora video
 │   │   ├── video_opensource.py   # Local / ffmpeg video pipeline
@@ -889,7 +881,7 @@ Key directories:
 **Solution:**
 - Content endpoints require login — register and log in first
 - Pass the token on requests: `Authorization: Bearer <token>`
-- Tokens expire (default 7 days); log in again to get a fresh one
+- Tokens expire (default 2 minutes); log in again to get a fresh one
 - Make sure `SECRET_KEY` in `.env` hasn't changed since the token was issued (changing it invalidates existing tokens)
 
 ### Problem: "Admin account cannot be created via public registration"
@@ -917,22 +909,12 @@ pip install -r requirements.txt
 - Try a smaller PDF first
 - Check that `pdfplumber` is installed: `pip list | grep pdfplumber`
 
-### Problem: Handwritten PDF returns no text / poor extraction
+### Problem: PDF returns no text
 
 **Solution:**
-- On **Upload**, select **Handwritten notes (scanned or photo PDF)** when uploading a handwritten PDF
-- Ensure Tesseract is installed on your system (`brew install tesseract` on macOS, `apt install tesseract-ocr` on Linux) and `pytesseract` is in your Python env (`pip install -r requirements.txt`)
-- Handwriting OCR is **English only**; use printed PDF mode or paste typed text for other languages
-- Set `HANDWRITING_OCR_ENABLED=true` in `.env` (default) and restart uvicorn
-- Without Tesseract, auto mode cannot extract handwritten pages
-- You can edit extracted source text on the **Explanation** page after upload if OCR missed a few words
-
-### Problem: Handwritten PDF extraction is very slow
-
-**Solution:**
-- Tesseract runs on CPU (~3–10 seconds per page depending on resolution)
-- Keep PDFs to a reasonable page count (backend processes up to 100 pages)
-- For faster iteration, photograph fewer pages or paste typed notes instead
+- Use a PDF with selectable text (not a pure image scan)
+- Paste the chapter text directly on the upload page instead
+- You can edit extracted source text on the **Explanation** page after upload
 
 ### Problem: "Images not generating"
 
@@ -966,8 +948,7 @@ pip install -r requirements.txt
 | **OpenAI SDK** | Cloud AI | Calls OpenAI API |
 | **Ollama** | Local AI | Runs AI models locally |
 | **python-pptx** | PowerPoint | Creates slide decks |
-| **pdfplumber** | PDF reading | Extracts text and tables from printed PDFs |
-| **pytesseract + Tesseract** | OCR | Scanned printed pages and English handwritten note PDFs (system binary required) |
+| **pdfplumber** | PDF reading | Extracts text and tables from PDFs |
 | **imageio** | Image processing | Handles video/image creation |
 | **edge-tts** | Text to speech | Free voice narration |
 
@@ -1082,7 +1063,7 @@ pip install -r requirements.txt
 - Alembic migrations for production database upgrades
 - Mobile app
 
-**Recently added:** handwritten PDF parsing (Tesseract), password reset (forgot/reset password flow + SMTP), Settings page (theme + change password), multi-language output (7 Indian languages + English), refreshed UI (logo, auth screens, sidebar), server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
+**Recently added:** password reset (forgot/reset password flow + SMTP), Settings page (theme + change password), multi-language output (7 Indian languages + English), refreshed UI (logo, auth screens, sidebar), server-persisted Project Library (`projects` API), class groups, server-side quiz attempts, student/teacher journeys, profile & usage UI, assign-to-group, SMTP email notifications for group invites and assignments.
 
 ---
 
@@ -1181,4 +1162,4 @@ Stop and restart uvicorn (settings are cached; file watch alone is not enough).
 
 **Last Updated**: July 2026  
 **Version**: 1.5  
-**Status**: Handwritten PDF OCR (Tesseract), password reset, Settings & theme, multi-language output, teacher & student journeys, server Project Library, class groups, server quiz results
+**Status**: Password reset, Settings & theme, multi-language output, teacher & student journeys, server Project Library, class groups, server quiz results

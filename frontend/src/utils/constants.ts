@@ -128,19 +128,6 @@ export const OUTPUT_LANGUAGES = [
 
 export type OutputLanguageId = (typeof OUTPUT_LANGUAGES)[number]['id']
 
-export const PDF_DOCUMENT_TYPES = [
-  { id: 'printed', label: 'Printed / typed PDF' },
-  { id: 'handwritten', label: 'Handwritten notes (scanned or photo PDF)' },
-] as const
-
-export type PdfDocumentTypeId = (typeof PDF_DOCUMENT_TYPES)[number]['id']
-
-export const PDF_HANDWRITTEN_TYPED_MISMATCH_ERROR =
-  'This PDF looks printed or typed. Select "Printed / typed PDF" instead of handwritten notes.'
-
-export const PDF_PRINTED_HANDWRITTEN_MISMATCH_ERROR =
-  'This PDF looks like handwritten notes or a scan. Select "Handwritten notes (scanned or photo PDF)" instead.'
-
 /** @deprecated Prefer OUTPUT_LANGUAGES — kept for Audio page imports. */
 export const AUDIO_LANGUAGES = OUTPUT_LANGUAGES
 export type AudioLanguageId = OutputLanguageId

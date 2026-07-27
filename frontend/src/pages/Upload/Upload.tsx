@@ -13,15 +13,11 @@ import {
   MAX_TEXT_LENGTH,
   OUTPUT_LANGUAGES,
   OUTPUT_TYPES,
-  PDF_DOCUMENT_TYPES,
-  PDF_HANDWRITTEN_TYPED_MISMATCH_ERROR,
-  PDF_PRINTED_HANDWRITTEN_MISMATCH_ERROR,
   PROJECT_NAME_MAX,
   PROJECT_NAME_MIN,
   ROUTES,
   type OutputLanguageId,
   type OutputTypeId,
-  type PdfDocumentTypeId,
 } from '../../utils/constants'
 import './Upload.css'
 
@@ -87,48 +83,16 @@ export function Upload() {
   const [text, setText] = useState('')
   const [outputs, setOutputs] = useState<OutputTypeId[]>(DEFAULT_OUTPUT_TYPES)
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguageId>(OUTPUT_LANGUAGES[0].id)
-  const [pdfDocumentType, setPdfDocumentType] = useState<PdfDocumentTypeId>('printed')
   const [projectName, setProjectName] = useState('')
   const [errors, setErrors] = useState<{
     content?: string
     outputs?: string
     name?: string
-    pdfType?: string
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
   const hasPdf = files.some((f) => isPdfFile(f))
   const hasImages = files.some((f) => isImageFile(f))
-
-  async function validatePdfDocumentTypeSelection(
-    pdfFile: File | undefined,
-    selectedType: PdfDocumentTypeId,
-  ): Promise<boolean> {
-    if (!pdfFile) {
-      setErrors((e) => ({ ...e, pdfType: undefined }))
-      return true
-    }
-
-    try {
-      const { looks_printed, looks_handwritten } = await explanationService.detectPdfType(pdfFile)
-      if (selectedType === 'handwritten' && looks_printed) {
-        setErrors((e) => ({ ...e, pdfType: PDF_HANDWRITTEN_TYPED_MISMATCH_ERROR }))
-        return false
-      }
-      if (selectedType === 'printed' && looks_handwritten) {
-        setErrors((e) => ({ ...e, pdfType: PDF_PRINTED_HANDWRITTEN_MISMATCH_ERROR }))
-        return false
-      }
-      setErrors((e) => ({ ...e, pdfType: undefined }))
-      return true
-    } catch {
-      setErrors((e) => ({
-        ...e,
-        pdfType: 'Could not verify PDF type. Please try again.',
-      }))
-      return false
-    }
-  }
 
   function acceptFiles(incoming: FileList | File[] | null | undefined) {
     if (!incoming || incoming.length === 0) return
@@ -147,8 +111,7 @@ export function Upload() {
       const pdfFile = selected[0]
       setFiles([pdfFile])
       setUploadSuccess('File uploaded successfully.')
-      setErrors((e) => ({ ...e, content: undefined, pdfType: undefined }))
-      void validatePdfDocumentTypeSelection(pdfFile, pdfDocumentType)
+      setErrors((e) => ({ ...e, content: undefined }))
       return
     }
 
@@ -179,14 +142,12 @@ export function Upload() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
     setFileError(null)
     setUploadSuccess(null)
-    setErrors((e) => ({ ...e, pdfType: undefined }))
   }
 
   function clearFiles() {
     setFiles([])
     setFileError(null)
     setUploadSuccess(null)
-    setErrors((e) => ({ ...e, pdfType: undefined }))
   }
 
   function onBrowse(e: ChangeEvent<HTMLInputElement>) {
@@ -207,7 +168,7 @@ export function Upload() {
     setErrors((e) => ({ ...e, outputs: undefined }))
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
 
     const nextErrors: typeof errors = {}
@@ -229,12 +190,6 @@ export function Upload() {
     }
 
     setSubmitting(true)
-    const pdfFile = files.find((f) => isPdfFile(f))
-    const pdfTypeOk = await validatePdfDocumentTypeSelection(pdfFile, pdfDocumentType)
-    if (!pdfTypeOk) {
-      setSubmitting(false)
-      return
-    }
 
     setErrors({})
     const jobId = startGeneration({
@@ -243,7 +198,6 @@ export function Upload() {
       files: files.length > 0 ? files : undefined,
       outputs,
       outputLanguage,
-      documentType: hasPdf ? pdfDocumentType : undefined,
     })
     navigate(ROUTES.processing, { state: { jobId } })
   }
@@ -337,33 +291,6 @@ export function Upload() {
             {uploadSuccess}
           </p>
         )}
-
-        <fieldset className={`upload-pdf-type${errors.pdfType ? ' upload-pdf-type-error' : ''}`}>
-          <legend>PDF type</legend>
-          <div className="upload-pdf-type-options">
-            {PDF_DOCUMENT_TYPES.map((option) => (
-              <label key={option.id} className="upload-radio">
-                <input
-                  type="radio"
-                  name="pdf-document-type"
-                  value={option.id}
-                  checked={pdfDocumentType === option.id}
-                  onChange={() => {
-                    setPdfDocumentType(option.id)
-                    const pdfFile = files.find((f) => isPdfFile(f))
-                    void validatePdfDocumentTypeSelection(pdfFile, option.id)
-                  }}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </div>
-          <p className="upload-pdf-type-hint">
-            Handwritten notes use local OCR (Tesseract) and may take longer on large scans.
-            English handwriting only.
-          </p>
-          {errors.pdfType && <p className="upload-error">{errors.pdfType}</p>}
-        </fieldset>
 
         <div className="upload-divider">
           <span>OR paste text below</span>

@@ -161,7 +161,7 @@ sequenceDiagram
 flowchart TD
     IN["Input: chapter text / PDF / images"] --> EP["explain endpoint<br/>(text-form | images | pdf)"]
     EP --> EXTRACT{"PDF or image?"}
-    EXTRACT -->|PDF| PDFX["pdf_extract.py<br/>(text + tables + OCR)"]
+    EXTRACT -->|PDF| PDFX["pdf_extract.py<br/>(text + tables)"]
     EXTRACT -->|Images| VISION["vision-capable LLM"]
     EXTRACT -->|Text| TEXT["raw text"]
     PDFX --> SVC["explanation.py"]

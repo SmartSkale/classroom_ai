@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { useStore } from '../store'
+import { AUTH_SESSION_EXPIRED_EVENT } from '../services/api'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -18,6 +19,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void loadSession()
   }, [loadSession])
+
+  useEffect(() => {
+    const onSessionExpired = () => {
+      logout()
+    }
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired)
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired)
+  }, [logout])
 
   const value: AuthContextValue = {
     user,

@@ -1,5 +1,5 @@
 import api from './api'
-import type { OutputLanguageId, PdfDocumentTypeId } from '../utils/constants'
+import type { OutputLanguageId } from '../utils/constants'
 
 /** @deprecated Prefer OutputLanguageId from utils/constants — kept for existing imports. */
 export type OutputLanguage = OutputLanguageId
@@ -49,8 +49,6 @@ export interface GenerateExplanationFromFileParams {
   topicHint?: string
   stack?: string
   outputLanguage?: OutputLanguage
-  /** PDF only: printed (default path) or handwritten (Tesseract). Omit for auto on backend. */
-  documentType?: PdfDocumentTypeId | 'auto'
 }
 
 /**
@@ -120,7 +118,7 @@ function appendExplainFormFields(
  * Generate an explanation directly from uploaded files (PDF or image(s)) and
  * return both the explanation and the extracted source text.
  *
- * - PDFs use POST /api/v1/explain/pdf (server extracts text + OCR and echoes it
+ * - PDFs use POST /api/v1/explain/pdf (server extracts text and echoes it
  *   back in `source_text_used_for_context`).
  * - A single image uses POST /api/v1/explain/image (vision model).
  * - Multiple images use POST /api/v1/explain/images (vision model).
@@ -135,7 +133,6 @@ async function generateExplanationFromFile(
     topicHint,
     stack = 'openai',
     outputLanguage = 'english',
-    documentType = 'auto',
   } = params
 
   if (files.length === 0) {
@@ -161,7 +158,6 @@ async function generateExplanationFromFile(
   let endpoint: string
   if (hasPdf) {
     form.append('file', files[0])
-    form.append('document_type', documentType)
     endpoint = '/explain/pdf'
   } else if (files.length === 1) {
     form.append('file', files[0])
@@ -180,22 +176,9 @@ async function generateExplanationFromFile(
   return { explanation, sourceText }
 }
 
-async function detectPdfType(
-  file: File,
-): Promise<{ looks_printed: boolean; looks_handwritten: boolean }> {
-  const form = new FormData()
-  form.append('file', file)
-  const { data } = await api.post<{ looks_printed: boolean; looks_handwritten: boolean }>(
-    '/explain/pdf/detect',
-    form,
-  )
-  return data
-}
-
 export const explanationService = {
   generateExplanation,
   generateExplanationFromFile,
-  detectPdfType,
   isImageFile,
   isPdfFile,
 }

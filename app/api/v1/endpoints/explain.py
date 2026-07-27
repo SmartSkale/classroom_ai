@@ -5,7 +5,6 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.schemas.explain import ExplainFromTextRequest, ExplainResponse
 from app.schemas.language import normalize_output_language
 from app.services import explanation as explanation_service
-from app.services.pdf_extract import DocumentType, pdf_looks_handwritten, pdf_looks_printed
 
 router = APIRouter()
 
@@ -149,47 +148,14 @@ async def explain_images(
         raise HTTPException(status_code=502, detail=f"LLM request failed: {e!s}") from e
 
 
-def _form_bool(raw: str) -> bool:
-    return str(raw).lower() in ("true", "1", "yes", "on")
-
-
-def _parse_document_type(raw: str) -> DocumentType:
-    value = str(raw or "auto").strip().lower()
-    if value in ("auto", "printed", "handwritten"):
-        return value  # type: ignore[return-value]
-    raise HTTPException(
-        status_code=400,
-        detail="document_type must be one of: auto, printed, handwritten.",
-    )
-
-
-@router.post("/pdf/detect")
-async def detect_pdf_type(
-    file: Annotated[UploadFile, File(description="PDF to inspect for printed vs handwritten")],
-) -> dict[str, bool]:
-    """Return whether the PDF has enough native text to be treated as printed/typed."""
-    if not file.filename or not str(file.filename).lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Upload a single .pdf file.")
-    data = await file.read()
-    if not data or len(data) > 40 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="PDF is empty or too large (max 40 MB).")
-    return {
-        "looks_printed": pdf_looks_printed(data),
-        "looks_handwritten": pdf_looks_handwritten(data),
-    }
-
-
 @router.post("/pdf", response_model=ExplainResponse)
 async def explain_pdf(
     file: Annotated[UploadFile, File(description="PDF chapter or textbook excerpt")],
     output_language: str = Form("english"),
     topic_hint: str | None = Form(None),
     stack: ModelStack = Form("openai"),
-    ocr_pages: str = Form("true"),
-    ocr_images: str = Form("true"),
-    document_type: str = Form("auto"),
 ) -> ExplainResponse:
-    """Extract text page-by-page (tables + optional OCR), then explain using that context."""
+    """Extract text page-by-page (tables), then explain using that context."""
     if not file.filename or not str(file.filename).lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Upload a single .pdf file.")
     data = await file.read()
@@ -197,16 +163,12 @@ async def explain_pdf(
         raise HTTPException(status_code=400, detail="PDF is empty or too large (max 40 MB).")
 
     lang = normalize_output_language(output_language)
-    doc_type = _parse_document_type(document_type)
     try:
         return await explanation_service.explain_from_pdf_bytes(
             data,
             output_language=lang,
             topic_hint=(topic_hint or "").strip() or None,
             llm_provider=_to_llm_provider(stack),
-            ocr_pages=_form_bool(ocr_pages),
-            ocr_images=_form_bool(ocr_images),
-            document_type=doc_type,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
