@@ -14,14 +14,28 @@ import { quizService, type GroupQuizResultRow } from '../../services/quizService
 import { ROUTES } from '../../utils/constants'
 import { canManageGroups } from '../../utils/roles'
 import { formatRelativeTime } from '../../utils/formatDate'
-import { isValidEmail } from '../../utils/validators'
+import { getApiErrorMessage } from '../../utils/apiErrors'
+import { isValidEmail, normalizeEmail } from '../../utils/validators'
 import './Groups.css'
 
-function parseEmails(raw: string): string[] {
-  return raw
+function parseEmails(raw: string): { valid: string[]; invalid: string[] } {
+  const parts = raw
     .split(/[\n,;]+/)
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => isValidEmail(e))
+    .map((e) => e.trim())
+    .filter(Boolean)
+
+  const valid: string[] = []
+  const invalid: string[] = []
+
+  for (const part of parts) {
+    if (isValidEmail(part)) {
+      valid.push(normalizeEmail(part))
+    } else {
+      invalid.push(part.toLowerCase())
+    }
+  }
+
+  return { valid, invalid }
 }
 
 export function Groups() {
@@ -96,7 +110,13 @@ export function Groups() {
   }, [expandedId])
 
   async function handleAddMembers(groupId: number) {
-    const emails = parseEmails(emailInput)
+    const { valid: emails, invalid } = parseEmails(emailInput)
+    if (invalid.length > 0) {
+      setMemberError(
+        `Invalid email address(es): ${invalid.join(', ')}. Use a real domain (e.g. student@school.edu).`,
+      )
+      return
+    }
     if (emails.length === 0) {
       setMemberError('Enter at least one valid email address.')
       return
@@ -107,8 +127,10 @@ export function Groups() {
       setEmailInput('')
       await loadDetail(groupId)
       refetch()
-    } catch {
-      setMemberError('Could not add students. Check the emails and try again.')
+    } catch (error) {
+      setMemberError(
+        getApiErrorMessage(error, 'Could not add students. Check the emails and try again.'),
+      )
     }
   }
 

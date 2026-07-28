@@ -209,7 +209,7 @@ export function Explanation() {
             />
           </label>
           <Button
-            variant="primary"
+            variant="outline"
             onClick={() => generate(chapterText, topicHint)}
             disabled={loading}
           >
@@ -275,14 +275,14 @@ export function Explanation() {
                 <Button variant="outline" size="sm" onClick={() => void handleCopy()}>
                   Copy explanation
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleDownload}>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
                   Download
                 </Button>
               </>
             )}
             {studentView && (!job || job.outputs.includes('quiz')) && (
               <Button
-                variant="primary"
+                variant="outline"
                 size="sm"
                 onClick={() =>
                   navigate(quizTakeRoute(id), { state: { name: projectName } })
@@ -306,7 +306,7 @@ export function Explanation() {
             <p>No explanation is available for this project yet.</p>
           )}
           {!studentView && (
-            <Button variant="primary" size="sm" onClick={() => setInputOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setInputOpen(true)}>
               {hasProjectFailures(job) ? 'Try again manually' : 'Generate explanation'}
             </Button>
           )}
@@ -320,6 +320,7 @@ export function Explanation() {
           projectName={projectName}
           sourceText={chapterText || undefined}
           studentView={studentView}
+          outlineOnly
         />
       )}
 

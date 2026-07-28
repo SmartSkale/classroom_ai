@@ -7,9 +7,10 @@ interface ModalProps {
   title?: string
   children: ReactNode
   footer?: ReactNode
+  className?: string
 }
 
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, className }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -24,7 +25,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
       <div
-        className="modal-card"
+        className={['modal-card', className].filter(Boolean).join(' ')}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -30,10 +30,15 @@ def create_access_token(subject: str, *, expires_delta: timedelta | None = None)
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> str | None:
+def decode_access_token(token: str, *, allow_expired: bool = False) -> str | None:
     settings = get_settings()
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": not allow_expired},
+        )
     except JWTError:
         return None
     subject = payload.get("sub")

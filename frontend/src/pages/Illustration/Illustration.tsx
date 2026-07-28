@@ -143,7 +143,7 @@ export function Illustration() {
         {loading ? (
           <Loader label="Generating illustration…" />
         ) : (
-          <Button variant="primary" size="lg" onClick={handleGenerate}>
+          <Button variant="outline" size="lg" onClick={handleGenerate}>
             {image ? 'Regenerate' : 'Generate Illustration'}
           </Button>
         )}
@@ -155,7 +155,7 @@ export function Illustration() {
             <img src={image} alt={`${projectName} illustration`} />
           </div>
           <div className="illustration-actions">
-            <Button variant="primary" onClick={handleDownloadPng}>
+            <Button variant="outline" onClick={handleDownloadPng}>
               Download PNG
             </Button>
             <Button variant="outline" onClick={handleDownloadPdf}>
@@ -173,6 +173,7 @@ export function Illustration() {
         activeOutput="illustration"
         projectName={projectName}
         sourceText={sourceText}
+        outlineOnly
       />
 
       {toast && (

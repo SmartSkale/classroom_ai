@@ -182,9 +182,7 @@ async def add_members(
         added: list[GroupMember] = []
 
         for raw_email in body.emails:
-            email = raw_email.lower().strip()
-            if not email:
-                continue
+            email = raw_email
 
             existing = (
                 db.query(GroupMember)

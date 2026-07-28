@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/Button'
+import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../utils/constants'
+import { homeSectionHref, scrollToHomeSection } from '../../utils/homeSections'
 import './Home.css'
 
 type Feature = {
@@ -75,6 +77,8 @@ const STUDENT_STEPS = [
 ]
 
 export function Home() {
+  const { isAuthenticated } = useAuth()
+
   return (
     <div className="home">
       <section className="home-hero" id="home">
@@ -87,12 +91,21 @@ export function Home() {
           slides, flashcards, audio, video, and infographics — all from a single source.
         </p>
         <div className="home-hero-actions">
-          <Link to={ROUTES.login} state={{ mode: 'register' }}>
-            <Button variant="primary" size="lg">
-              Get Started Free
-            </Button>
-          </Link>
-          <a href="#how-it-works">
+          {!isAuthenticated && (
+            <Link to={ROUTES.login} state={{ mode: 'register' }}>
+              <Button variant="primary" size="lg">
+                Get Started Free
+              </Button>
+            </Link>
+          )}
+          <a
+            href={homeSectionHref('how-it-works')}
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToHomeSection('how-it-works')
+              window.history.pushState(null, '', homeSectionHref('how-it-works'))
+            }}
+          >
             <Button variant="outline" size="lg">
               See How It Works
             </Button>

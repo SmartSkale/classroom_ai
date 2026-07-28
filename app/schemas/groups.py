@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.core.email_validation import normalize_and_validate_email
 from app.models.groups import GroupMemberStatus
 
 
@@ -43,7 +44,17 @@ class GroupDetailResponse(GroupResponse):
 
 
 class GroupMembersAdd(BaseModel):
-    emails: list[EmailStr] = Field(min_length=1)
+    emails: list[str] = Field(min_length=1)
+
+    @field_validator("emails")
+    @classmethod
+    def validate_emails(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for raw in values:
+            email = normalize_and_validate_email(raw)
+            if email not in normalized:
+                normalized.append(email)
+        return normalized
 
 
 class GroupAssignmentCreate(BaseModel):

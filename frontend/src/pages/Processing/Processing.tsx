@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { DownloadAllButton } from '../../components/DownloadAllButton'
+import { Loader } from '../../components/Loader'
 import { Modal } from '../../components/Modal'
 import { useGeneration, type GenerationJob, type StepStatus } from '../../context/generation-context'
-import { formatStepError } from '../../utils/projectStatus'
 import {
+  ACTIVE_GENERATION_JOB_KEY,
   ROUTES,
   audioRoute,
   flashcardsRoute,
@@ -17,11 +18,8 @@ import {
   videoRoute,
   type OutputTypeId,
 } from '../../utils/constants'
+import { formatStepError } from '../../utils/projectStatus'
 import './Processing.css'
-
-interface ProcessingState {
-  jobId: string
-}
 
 const STATUS_TAG: Record<StepStatus, string> = {
   done: 'DONE',
@@ -51,29 +49,74 @@ function firstReadyRoute(job: GenerationJob): string {
   return projectRoute(job.id)
 }
 
-export function Processing() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { jobs } = useGeneration()
-  const state = (location.state ?? null) as ProcessingState | null
+/** Redirect bare `/processing` to the active job or upload. */
+export function ProcessingIndex() {
+  const activeId = sessionStorage.getItem(ACTIVE_GENERATION_JOB_KEY)
+  if (activeId) {
+    return <Navigate to={`/processing/${activeId}`} replace />
+  }
+  return <Navigate to={ROUTES.upload} replace />
+}
 
-  const jobId = state?.jobId
+export function Processing() {
+  const { jobId } = useParams<{ jobId: string }>()
+  const navigate = useNavigate()
+  const { jobs, loadProject, hydrated } = useGeneration()
+
   const job = jobId ? jobs[jobId] : undefined
+  const [loading, setLoading] = useState(Boolean(jobId && !job))
+
+  useEffect(() => {
+    if (!jobId) return
+    sessionStorage.setItem(ACTIVE_GENERATION_JOB_KEY, jobId)
+  }, [jobId])
+
+  useEffect(() => {
+    if (!jobId || job) {
+      setLoading(false)
+      return
+    }
+    if (!hydrated) return
+
+    let cancelled = false
+    setLoading(true)
+    void loadProject(jobId).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [jobId, job, loadProject, hydrated])
+
+  const resolvedJob = jobId ? jobs[jobId] : undefined
 
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
-    if (!job?.done || !jobId) return
+    if (!resolvedJob?.done || !jobId) return
+    sessionStorage.removeItem(ACTIVE_GENERATION_JOB_KEY)
     const t = setTimeout(() => {
-      navigate(firstReadyRoute(job), {
+      navigate(firstReadyRoute(resolvedJob), {
         replace: true,
-        state: { name: job.name, text: job.sourceText },
+        state: { name: resolvedJob.name, text: resolvedJob.sourceText },
       })
     }, 1200)
     return () => clearTimeout(t)
-  }, [job?.done, jobId, navigate, job])
+  }, [resolvedJob?.done, jobId, navigate, resolvedJob])
 
-  if (!jobId || !job) {
+  if (!jobId) {
+    return <Navigate to={ROUTES.upload} replace />
+  }
+
+  if (loading || (!resolvedJob && !hydrated)) {
+    return (
+      <div className="processing processing-loading">
+        <Loader label="Loading generation status…" />
+      </div>
+    )
+  }
+
+  if (!resolvedJob) {
     return <Navigate to={ROUTES.upload} replace />
   }
 
@@ -81,21 +124,24 @@ export function Processing() {
     navigate(ROUTES.dashboard, { replace: true })
   }
 
-  const failedStep = job.steps.find((s) => s.status === 'failed')
-  const activeStep = job.steps.find((s) => s.status === 'in_progress')
+  const failedStep = resolvedJob.steps.find((s) => s.status === 'failed')
+  const activeStep = resolvedJob.steps.find((s) => s.status === 'in_progress')
 
   return (
     <div className="processing">
       <header className="processing-header">
         <p className="processing-eyebrow">AI Processing</p>
-        <h1 className="processing-title">{job.name}</h1>
+        <h1 className="processing-title">{resolvedJob.name}</h1>
       </header>
 
       <div className="processing-bar" aria-label="Overall progress">
         <div className="processing-bar-track">
-          <div className="processing-bar-fill" style={{ width: `${job.progress}%` }} />
+          <div
+            className="processing-bar-fill"
+            style={{ width: `${resolvedJob.progress}%` }}
+          />
         </div>
-        <span className="processing-percent">{job.progress}%</span>
+        <span className="processing-percent">{resolvedJob.progress}%</span>
       </div>
 
       {activeStep && (
@@ -117,7 +163,7 @@ export function Processing() {
       <section className="processing-status">
         <h2 className="processing-status-title">Status</h2>
         <ul className="processing-steps">
-          {job.steps.map((step) => (
+          {resolvedJob.steps.map((step) => (
             <li key={step.key} className={`processing-step status-${step.status}`}>
               <span className="step-tag" aria-hidden="true">
                 {STATUS_TAG[step.status]}
@@ -131,18 +177,18 @@ export function Processing() {
       </section>
 
       <p className="processing-note">
-        Your project is saved automatically. You can return to the Library anytime to review or
-        regenerate materials.
+        Your project is saved automatically. You can browse other pages — use the progress banner
+        at the top or return here anytime to check status.
       </p>
 
-      {job.done && (
+      {resolvedJob.done && (
         <section className="processing-download" aria-label="Download all materials">
-          <DownloadAllButton job={job} variant="primary" size="md" fullWidth />
+          <DownloadAllButton job={resolvedJob} variant="primary" size="md" fullWidth />
         </section>
       )}
 
       <div className="processing-actions">
-        <Button variant="danger" onClick={() => setConfirmOpen(true)} disabled={job.done}>
+        <Button variant="danger" onClick={() => setConfirmOpen(true)} disabled={resolvedJob.done}>
           Cancel Generation
         </Button>
       </div>

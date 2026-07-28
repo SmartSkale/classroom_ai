@@ -1,1 +1,1 @@
-export { Processing, default } from './Processing'
+export { Processing, ProcessingIndex, default } from './Processing'

@@ -63,7 +63,7 @@ export interface GenerationContextValue {
   /** Kick off real backend generation for every selected output. Returns the job id. */
   startGeneration: (input: StartGenerationInput) => string
   /** Re-run generation for an existing saved project. Returns the job id. */
-  regenerateProject: (id: string) => string | null
+  regenerateProject: (id: string) => Promise<string | null>
   getJob: (id: string | undefined) => GenerationJob | undefined
   /** Persist a (re)generated result into a job so other screens read it from cache. */
   cacheResults: (id: string, results: Partial<GenerationResults>) => void

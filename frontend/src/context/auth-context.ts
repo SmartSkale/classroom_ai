@@ -11,6 +11,7 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
+  refreshSession: () => Promise<void>
   updateProfile: (payload: UserUpdatePayload) => Promise<string | null>
   changePassword: (payload: ChangePasswordPayload) => Promise<void>
   clearError: () => void

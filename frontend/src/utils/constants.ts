@@ -5,6 +5,22 @@ export const API_BASE_URL =
 
 export const TOKEN_STORAGE_KEY = 'classroomai.token'
 
+/** Last active generation job id — used to recover the processing view after navigation. */
+export const ACTIVE_GENERATION_JOB_KEY = 'classroomai.activeGenerationJobId'
+
+/** Show the session-timeout warning when inactive time remaining is at or below this threshold. */
+export const SESSION_WARNING_MS = 3 * 60 * 1000
+
+/**
+ * Total inactivity duration before the session is considered expired.
+ * Override with VITE_SESSION_INACTIVITY_MINUTES in frontend/.env.
+ */
+const configuredInactivityMinutes = Number(import.meta.env.VITE_SESSION_INACTIVITY_MINUTES)
+export const SESSION_INACTIVITY_TIMEOUT_MS =
+  configuredInactivityMinutes > 0
+    ? configuredInactivityMinutes * 60 * 1000
+    : 15 * 60 * 1000
+
 export const ROUTES = {
   home: '/',
   login: '/login',
@@ -19,6 +35,8 @@ export const ROUTES = {
   upload: '/upload',
   processing: '/processing',
 } as const
+
+export const processingRoute = (jobId: string) => `/processing/${jobId}`
 
 export const projectRoute = (id: string | number) => `/projects/${id}`
 export const quizRoute = (id: string | number) => `/projects/${id}/quiz`
@@ -161,7 +179,7 @@ export const MAX_IMAGE_COUNT = 20
 export const MAX_TEXT_LENGTH = 10_000
 export const PROJECT_NAME_MIN = 3
 export const PROJECT_NAME_MAX = 80
-export const ACCEPTED_FILE_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'docx'] as const
+export const ACCEPTED_FILE_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg'] as const
 
 export const OUTPUT_TYPES = [
   { id: 'explanation', label: 'Explanation' },

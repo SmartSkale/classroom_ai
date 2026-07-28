@@ -11,6 +11,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useStore((s) => s.login)
   const register = useStore((s) => s.register)
   const logout = useStore((s) => s.logout)
+  const refreshSession = useStore((s) => s.refreshSession)
   const loadSession = useStore((s) => s.loadSession)
   const updateProfile = useStore((s) => s.updateProfile)
   const changePassword = useStore((s) => s.changePassword)
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
+    refreshSession,
     updateProfile,
     changePassword,
     clearError,

@@ -184,7 +184,7 @@ export function Slides() {
           <Loader label="Generating slides…" />
         ) : (
           <div className="slides-actions">
-            <Button variant="primary" size="lg" onClick={handleGenerate}>
+            <Button variant="outline" size="lg" onClick={handleGenerate}>
               Generate Slides
             </Button>
             {cachedDeck && (
@@ -214,6 +214,7 @@ export function Slides() {
         activeOutput="slides"
         projectName={projectName}
         sourceText={sourceText}
+        outlineOnly
       />
     </div>
   )

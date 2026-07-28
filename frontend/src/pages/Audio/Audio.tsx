@@ -248,7 +248,7 @@ export function Audio() {
           <Loader label="Generating audio…" />
         ) : (
           <div className="audio-generate">
-            <Button variant="primary" size="lg" onClick={handleGenerate}>
+            <Button variant="outline" size="lg" onClick={handleGenerate}>
               {audioUrl ? 'Regenerate' : 'Generate Audio'}
             </Button>
           </div>
@@ -305,7 +305,7 @@ export function Audio() {
             }}
           />
           <div className="audio-player-actions">
-            <Button variant="primary" onClick={handleDownload}>
+            <Button variant="outline" onClick={handleDownload}>
               Download MP3
             </Button>
             <Button variant="outline" onClick={handleGenerate}>
@@ -321,6 +321,7 @@ export function Audio() {
         projectName={projectName}
         sourceText={sourceText}
         studentView={studentView}
+        outlineOnly
       />
 
       {toast && (

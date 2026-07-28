@@ -71,7 +71,7 @@ export function SlidesPreview() {
         </nav>
         <div className="slides-empty">
           <p>No slide deck to preview yet.</p>
-          <Button variant="primary" onClick={() => navigate(slidesRoute(id), { state: navState })}>
+          <Button variant="outline" onClick={() => navigate(slidesRoute(id), { state: navState })}>
             Configure slides
           </Button>
         </div>
@@ -99,7 +99,7 @@ export function SlidesPreview() {
           </p>
         </div>
         <div className="slides-preview-actions">
-          <Button variant="primary" size="sm" onClick={handleDownload} disabled={downloading}>
+          <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
             {downloading ? 'Downloading…' : 'Download PPTX'}
           </Button>
           <Button
@@ -109,7 +109,7 @@ export function SlidesPreview() {
           >
             Regenerate
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.dashboard)}>
+          <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.dashboard)}>
             Back to Dashboard
           </Button>
         </div>
@@ -156,6 +156,7 @@ export function SlidesPreview() {
         activeOutput="slides"
         projectName={projectName}
         sourceText={navState?.text}
+        outlineOnly
       />
 
       {toast && (

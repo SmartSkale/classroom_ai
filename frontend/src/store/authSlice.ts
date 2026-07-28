@@ -7,6 +7,7 @@ import authService, {
 } from '../services/authService'
 import { TOKEN_STORAGE_KEY } from '../utils/constants'
 import { isTokenExpired } from '../utils/jwt'
+import { recordActivity } from '../utils/activityTracker'
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'error'
 
@@ -18,6 +19,7 @@ export interface AuthSlice {
   login: (email: string, password: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
+  refreshSession: () => Promise<void>
   loadSession: () => Promise<void>
   updateProfile: (payload: UserUpdatePayload) => Promise<string | null>
   changePassword: (payload: ChangePasswordPayload) => Promise<void>
@@ -49,6 +51,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
       const { access_token } = await authService.login(email, password)
       persistToken(access_token)
       set({ token: access_token })
+      recordActivity()
       const user = await authService.getCurrentUser()
       set({ user, status: 'authenticated' })
     } catch {
@@ -64,6 +67,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
       const { access_token } = await authService.login(payload.email, payload.password)
       persistToken(access_token)
       set({ token: access_token })
+      recordActivity()
       const user = await authService.getCurrentUser()
       set({ user, status: 'authenticated' })
     } catch {
@@ -74,6 +78,13 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
   logout: () => {
     persistToken(null)
     set({ user: null, token: null, status: 'idle', error: null })
+  },
+
+  refreshSession: async () => {
+    const { access_token } = await authService.refreshSession()
+    persistToken(access_token)
+    set({ token: access_token })
+    recordActivity()
   },
 
   loadSession: async () => {
@@ -87,6 +98,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set) => ({
     try {
       const user = await authService.getCurrentUser()
       set({ user, status: 'authenticated' })
+      recordActivity()
     } catch {
       persistToken(null)
       set({ user: null, token: null, status: 'idle' })

@@ -10,7 +10,7 @@ import { Dashboard } from '../pages/Dashboard'
 import { Profile } from '../pages/Profile'
 import { Settings } from '../pages/Settings'
 import { Upload } from '../pages/Upload'
-import { Processing } from '../pages/Processing'
+import { Processing, ProcessingIndex } from '../pages/Processing'
 import { Quiz } from '../pages/Quiz'
 import { QuizTake } from '../pages/QuizTake'
 import { SharedLesson } from '../pages/SharedLesson'
@@ -83,7 +83,8 @@ export function AppRoutes() {
           <Route path={ROUTES.library} element={<Library />} />
           <Route path={ROUTES.groups} element={<Groups />} />
           <Route path={ROUTES.upload} element={<Upload />} />
-          <Route path={ROUTES.processing} element={<Processing />} />
+          <Route path={ROUTES.processing} element={<ProcessingIndex />} />
+          <Route path="/processing/:jobId" element={<Processing />} />
           <Route path="/projects/:id/quiz/results" element={<QuizResults />} />
           <Route path="/projects/:id/quiz/take" element={<QuizTake />} />
           <Route path="/projects/:id/quiz" element={<Quiz />} />

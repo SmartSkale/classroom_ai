@@ -86,6 +86,30 @@ function clampCount(n: number): number {
   return Math.min(QUIZ_COUNT_MAX, Math.max(QUIZ_COUNT_MIN, Math.round(n)))
 }
 
+function normalizeQuizQuotes(text: string): string {
+  return text
+    .replace(/\u00ab/g, '"')
+    .replace(/\u00bb/g, '"')
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+}
+
+function sanitizeQuizPrompt(prompt: string): string {
+  return normalizeQuizQuotes(prompt.replace(/^\[\d+\]\s*/, '').replace(/^Q\d+\.\s*/i, '').trim())
+}
+
+export function sanitizeQuizQuestions(questions: QuizQuestion[]): QuizQuestion[] {
+  return questions.map((q) => ({
+    ...q,
+    prompt: sanitizeQuizPrompt(q.prompt),
+    options: q.options?.map((o) => normalizeQuizQuotes(o)),
+    correctExplanation: q.correctExplanation
+      ? normalizeQuizQuotes(q.correctExplanation)
+      : q.correctExplanation,
+    wrongExplanation: q.wrongExplanation ? normalizeQuizQuotes(q.wrongExplanation) : q.wrongExplanation,
+  }))
+}
+
 async function requestQuiz(params: GenerateQuizParams): Promise<QuizQuestion[]> {
   const { topic, contextText, settings, stack = 'openai', outputLanguage = 'english' } = params
 
@@ -100,16 +124,18 @@ async function requestQuiz(params: GenerateQuizParams): Promise<QuizQuestion[]> 
 
   const { data } = await api.post<BackendQuizResponse>('/quiz/generate', payload)
 
-  return data.questions.map((q, i) => ({
-    id: q.id || `q${i + 1}`,
-    number: i + 1,
-    type: 'mcq' as QuestionTypeId,
-    prompt: q.question,
-    options: q.options,
-    answerIndex: q.correct_option_index,
-    correctExplanation: q.correct_explanation,
-    wrongExplanation: q.wrong_explanation,
-  }))
+  return sanitizeQuizQuestions(
+    data.questions.map((q, i) => ({
+      id: q.id || `q${i + 1}`,
+      number: i + 1,
+      type: 'mcq' as QuestionTypeId,
+      prompt: q.question,
+      options: q.options,
+      answerIndex: q.correct_option_index,
+      correctExplanation: q.correct_explanation,
+      wrongExplanation: q.wrong_explanation,
+    })),
+  )
 }
 
 const quizCache = new Map<string, Promise<QuizQuestion[]>>()

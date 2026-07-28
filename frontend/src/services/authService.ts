@@ -44,6 +44,12 @@ export interface RegisterPayload {
   role?: UserRole
 }
 
+/** POST /auth/validate-email — check format, TLD, and domain deliverability. */
+async function validateEmail(email: string): Promise<{ email: string }> {
+  const { data } = await api.post<{ email: string }>('/auth/validate-email', { email })
+  return data
+}
+
 /** POST /auth/login — expects form-encoded username/password. */
 async function login(email: string, password: string): Promise<LoginResponse> {
   const form = new URLSearchParams()
@@ -64,6 +70,12 @@ async function register(payload: RegisterPayload): Promise<User> {
 /** GET /auth/me — current user profile (requires bearer token). */
 async function getCurrentUser(): Promise<User> {
   const { data } = await api.get<User>('/auth/me')
+  return data
+}
+
+/** POST /auth/refresh — issue a new access token for the current session. */
+async function refreshSession(): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>('/auth/refresh')
   return data
 }
 
@@ -94,7 +106,9 @@ async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: 
 export const authService = {
   login,
   register,
+  validateEmail,
   getCurrentUser,
+  refreshSession,
   updateProfile,
   changePassword,
   requestPasswordReset,

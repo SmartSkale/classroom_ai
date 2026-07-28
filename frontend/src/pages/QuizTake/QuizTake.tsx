@@ -4,7 +4,7 @@ import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
 import { useAuth } from '../../hooks/useAuth'
 import { useGeneration } from '../../context/generation-context'
-import { quizService } from '../../services/quizService'
+import { quizService, sanitizeQuizQuestions } from '../../services/quizService'
 import { quizResultsRoute, ROUTES } from '../../utils/constants'
 import { updateQuizProgress } from '../../utils/studentAssignments'
 import './QuizTake.css'
@@ -21,7 +21,10 @@ export function QuizTake() {
   const navState = location.state as { name?: string } | null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
 
-  const questions = useMemo(() => job?.results.quiz ?? [], [job])
+  const questions = useMemo(
+    () => sanitizeQuizQuestions(job?.results.quiz ?? []),
+    [job],
+  )
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [startedAt] = useState(() => Date.now())
   const [submitting, setSubmitting] = useState(false)
@@ -134,7 +137,7 @@ export function QuizTake() {
       )}
 
       <div className="quiz-take-actions">
-        <Button variant="primary" disabled={!allAnswered || submitting} onClick={() => void handleSubmit()}>
+        <Button variant="outline" disabled={!allAnswered || submitting} onClick={() => void handleSubmit()}>
           {submitting ? 'Submitting…' : 'Submit Quiz'}
         </Button>
         {!allAnswered && (

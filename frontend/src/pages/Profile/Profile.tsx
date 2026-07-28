@@ -10,7 +10,7 @@ import type { User } from '../../services/authService'
 import { ROUTES, USER_ROLES } from '../../utils/constants'
 import { getApiErrorMessage } from '../../utils/apiErrors'
 import { getRoleLabel } from '../../utils/roles'
-import { getEmailError, getFullNameError } from '../../utils/validators'
+import { getFullNameError } from '../../utils/validators'
 import './Profile.css'
 
 function getInitials(user: User): string {
@@ -41,7 +41,6 @@ export function Profile() {
 
   const [isEditing, setIsEditing] = useState(false)
   const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
@@ -59,7 +58,6 @@ export function Profile() {
   useEffect(() => {
     if (!user) return
     setFullName(user.full_name ?? '')
-    setEmail(user.email)
   }, [user])
 
   if (!user) return <Loader fullscreen label="Loading profile…" />
@@ -67,14 +65,11 @@ export function Profile() {
   const initials = getInitials(user)
   const displayName = user.full_name?.trim() || user.email.split('@')[0]
   const roleAccountLabel = `${getRoleLabel(user)} ACCOUNT`
-  const isDirty =
-    fullName.trim() !== (user.full_name ?? '').trim() ||
-    email.trim().toLowerCase() !== user.email.toLowerCase()
+  const isDirty = fullName.trim() !== (user.full_name ?? '').trim()
 
   function resetForm() {
     if (!user) return
     setFullName(user.full_name ?? '')
-    setEmail(user.email)
     setMessage(null)
   }
 
@@ -100,12 +95,6 @@ export function Profile() {
       return
     }
 
-    const emailError = getEmailError(email)
-    if (emailError) {
-      setMessage({ type: 'error', text: emailError })
-      return
-    }
-
     if (!isDirty) {
       setIsEditing(false)
       return
@@ -114,12 +103,9 @@ export function Profile() {
     setSaving(true)
     setMessage(null)
     try {
-      const payload: { full_name?: string; email?: string } = {}
+      const payload: { full_name?: string } = {}
       if (fullName.trim() !== (user.full_name ?? '').trim()) {
         payload.full_name = fullName.trim()
-      }
-      if (email.trim().toLowerCase() !== user.email.toLowerCase()) {
-        payload.email = email.trim()
       }
       await updateProfile(payload)
       setMessage({ type: 'success', text: 'Profile updated.' })
@@ -231,24 +217,10 @@ export function Profile() {
 
           <div className="profile-info-field">
             <span className="profile-info-label">Email</span>
-            {isEditing ? (
-              <input
-                id="profile-email"
-                className="profile-info-input"
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  setMessage(null)
-                }}
-                autoComplete="email"
-              />
-            ) : (
-              <span className="profile-info-value">
-                <EmailIcon />
-                {user.email}
-              </span>
-            )}
+            <span className="profile-info-value">
+              <EmailIcon />
+              {user.email}
+            </span>
           </div>
 
         </div>

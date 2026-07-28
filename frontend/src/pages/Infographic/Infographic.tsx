@@ -184,7 +184,7 @@ export function Infographic() {
         {loading ? (
           <Loader label="Generating infographic…" />
         ) : (
-          <Button variant="primary" size="lg" onClick={handleGenerate}>
+          <Button variant="outline" size="lg" onClick={handleGenerate}>
             {image ? 'Regenerate' : 'Generate Infographic'}
           </Button>
         )}
@@ -196,7 +196,7 @@ export function Infographic() {
             <img src={image} alt={`${projectName} infographic`} />
           </div>
           <div className="infographic-actions">
-            <Button variant="primary" onClick={handleDownloadPng}>
+            <Button variant="outline" onClick={handleDownloadPng}>
               Download PNG
             </Button>
             <Button variant="outline" onClick={handleDownloadPdf}>
@@ -214,6 +214,7 @@ export function Infographic() {
         activeOutput="infographic"
         projectName={projectName}
         sourceText={sourceText}
+        outlineOnly
       />
 
       {toast && (

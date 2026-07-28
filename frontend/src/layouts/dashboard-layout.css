@@ -209,6 +209,20 @@
   box-shadow: none;
 }
 
+.dash-nav-link-generating {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.dash-nav-link-generating:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.dash-nav-link-generating.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
 .dash-nav-icon {
   flex: none;
   display: flex;

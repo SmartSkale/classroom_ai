@@ -36,6 +36,8 @@ interface ProjectOutputNavProps {
   projectName?: string
   sourceText?: string
   studentView?: boolean
+  /** When true, every nav button uses the outline style. */
+  outlineOnly?: boolean
 }
 
 export function ProjectOutputNav({
@@ -44,6 +46,7 @@ export function ProjectOutputNav({
   projectName,
   sourceText,
   studentView = false,
+  outlineOnly = false,
 }: ProjectOutputNavProps) {
   const navigate = useNavigate()
   const { jobs } = useGeneration()
@@ -74,7 +77,7 @@ export function ProjectOutputNav({
           return (
             <Button
               key={output}
-              variant={output === primaryOutput ? 'primary' : 'outline'}
+              variant={outlineOnly || output !== primaryOutput ? 'outline' : 'primary'}
               onClick={() => goTo(output)}
             >
               {label}
@@ -82,7 +85,7 @@ export function ProjectOutputNav({
           )
         })}
         <Button
-          variant={studentView ? 'ghost' : 'outline'}
+          variant={outlineOnly ? 'outline' : studentView ? 'ghost' : 'outline'}
           onClick={() => navigate(studentView ? ROUTES.dashboard : ROUTES.library)}
         >
           {studentView ? 'Back to Dashboard' : 'Project Library'}

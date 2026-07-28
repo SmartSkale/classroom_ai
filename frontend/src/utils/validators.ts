@@ -1,10 +1,27 @@
 import { VALID_TLDS } from '../data/validTlds'
+import authService from '../services/authService'
+import { getApiErrorMessage } from './apiErrors'
 
 const EMAIL_LOCAL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/
 const EMAIL_DOMAIN_RE =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
 const PASSWORD_UPPER_RE = /[A-Z]/
 const PASSWORD_DIGIT_RE = /\d/
+const DOMAIN_VOWEL_RE = /[aeiou]/i
+
+/** Reject long random-looking domain labels (e.g. dfghjk in dfghjk.com). */
+function isPlausibleDomainLabel(label: string): boolean {
+  if (label.length < 2) return false
+  if (label.length <= 4) return true
+  return DOMAIN_VOWEL_RE.test(label)
+}
+
+function isPlausibleEmailDomain(domain: string): boolean {
+  const labels = domain.split('.')
+  if (labels.length < 2) return false
+  const hostLabels = labels.slice(0, -1)
+  return hostLabels.every(isPlausibleDomainLabel)
+}
 
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase()
@@ -25,6 +42,7 @@ export function isValidEmail(value: string): boolean {
   if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false
   if (!EMAIL_LOCAL_RE.test(local)) return false
   if (!EMAIL_DOMAIN_RE.test(domain)) return false
+  if (!isPlausibleEmailDomain(domain)) return false
 
   const labels = domain.split('.')
   if (labels.some((label) => label.length < 2)) return false
@@ -52,8 +70,23 @@ export function isValidNewPassword(value: string): boolean {
 
 export function getEmailError(value: string): string | null {
   if (!value.trim()) return 'Email is required.'
-  if (!isValidEmail(value)) return 'Enter a valid email address (e.g. you@example.com).'
+  if (!isValidEmail(value)) {
+    return 'Enter a valid email address with a real domain (e.g. you@example.com).'
+  }
   return null
+}
+
+/** Server-side DNS/deliverability check (blocks fake domains like user@dfghjk.com). */
+export async function verifyEmailDeliverable(email: string): Promise<string | null> {
+  try {
+    await authService.validateEmail(normalizeEmail(email))
+    return null
+  } catch (error) {
+    return getApiErrorMessage(
+      error,
+      'Enter a valid email address with a real domain (e.g. you@example.com).',
+    )
+  }
 }
 
 export function getFullNameError(value: string): string | null {
@@ -70,8 +103,11 @@ export function getPasswordError(value: string): string | null {
   return null
 }
 
-export function getNewPasswordError(value: string): string | null {
-  if (!value) return 'New password is required.'
+export function getNewPasswordError(
+  value: string,
+  { emptyMessage = 'New password is required.' }: { emptyMessage?: string } = {},
+): string | null {
+  if (!value) return emptyMessage
   if (value.length < 8) return 'Password must be at least 8 characters.'
   if (!PASSWORD_UPPER_RE.test(value)) {
     return 'Password must contain at least one uppercase letter.'

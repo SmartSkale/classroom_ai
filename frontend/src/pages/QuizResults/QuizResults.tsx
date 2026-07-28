@@ -6,7 +6,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { quizService, type QuizResult } from '../../services/quizService'
 import {
-  flashcardsRoute,
   projectRoute,
   quizTakeRoute,
   ROUTES,
@@ -52,7 +51,7 @@ export function QuizResults() {
       <div className="results">
         <div className="results-error" role="alert">
           <p>No quiz results yet. Take the quiz first to see your score.</p>
-          <Button variant="primary" size="sm" onClick={() => navigate(quizTakeRoute(id))}>
+          <Button variant="outline" size="sm" onClick={() => navigate(quizTakeRoute(id))}>
             Take Quiz
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -139,19 +138,13 @@ export function QuizResults() {
 
       <div className="results-actions">
         <Button
-          variant="primary"
+          variant="outline"
           onClick={() => navigate(quizTakeRoute(id), { state: { name: projectName } })}
         >
           Retry Quiz
         </Button>
         <Button
           variant="outline"
-          onClick={() => navigate(flashcardsRoute(id), { state: { name: projectName } })}
-        >
-          Study Flashcards
-        </Button>
-        <Button
-          variant="ghost"
           onClick={() => navigate(projectRoute(id), { state: { name: projectName } })}
         >
           Back to Lesson

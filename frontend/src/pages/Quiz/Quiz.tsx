@@ -6,7 +6,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { quizService, type QuizQuestion, type QuizSettings } from '../../services/quizService'
+import { quizService, sanitizeQuizQuestions, type QuizQuestion, type QuizSettings } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
 import { isStudent } from '../../utils/roles'
 import { getStepFailure } from '../../utils/projectStatus'
@@ -46,7 +46,9 @@ export function Quiz() {
   const [count, setCount] = useState(10)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
 
-  const [questions, setQuestions] = useState<QuizQuestion[] | null>(cachedQuiz)
+  const [questions, setQuestions] = useState<QuizQuestion[] | null>(
+    cachedQuiz ? sanitizeQuizQuestions(cachedQuiz) : null,
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
@@ -187,7 +189,7 @@ export function Quiz() {
           {!loading && !error && !questions && !getStepFailure(job, 'quiz') && (
             <div className="quiz-error-box">
               <p>No quiz available yet. Adjust the settings and generate one.</p>
-              <Button variant="primary" size="sm" onClick={handleRegenerate}>
+              <Button variant="outline" size="sm" onClick={handleRegenerate}>
                 Generate Quiz
               </Button>
             </div>
@@ -218,7 +220,7 @@ export function Quiz() {
             <div className="quiz-actions">
               {!studentView && (
                 <>
-                  <Button variant="primary" onClick={handleDownload}>
+                  <Button variant="outline" onClick={handleDownload}>
                     Download
                   </Button>
                   <Button variant="outline" onClick={handleRegenerate}>
@@ -227,7 +229,7 @@ export function Quiz() {
                 </>
               )}
               <Button
-                variant="primary"
+                variant="outline"
                 onClick={() =>
                   navigate(quizTakeRoute(id), { state: { name: projectName } })
                 }
@@ -255,6 +257,7 @@ export function Quiz() {
         projectName={projectName}
         sourceText={sourceText}
         studentView={studentView}
+        outlineOnly
       />
 
       {toast && (

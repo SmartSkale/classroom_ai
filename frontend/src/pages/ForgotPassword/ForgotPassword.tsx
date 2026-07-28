@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import authService from '../../services/authService'
-import { getEmailError, isValidEmail, normalizeEmail } from '../../utils/validators'
+import { getEmailError, isValidEmail, normalizeEmail, verifyEmailDeliverable } from '../../utils/validators'
 import { getApiErrorMessage } from '../../utils/apiErrors'
 import { ROUTES } from '../../utils/constants'
 import '../Login/Login.css'
@@ -34,6 +34,12 @@ export function ForgotPassword() {
     const emailErr = getEmailError(email)
     setEmailError(emailErr)
     if (emailErr) return
+
+    const deliverabilityErr = await verifyEmailDeliverable(email)
+    if (deliverabilityErr) {
+      setEmailError(deliverabilityErr)
+      return
+    }
 
     const normalizedEmail = normalizeEmail(email)
     setSubmitting(true)

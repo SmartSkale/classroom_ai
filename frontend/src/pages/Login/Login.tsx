@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { useAuth } from '../../hooks/useAuth'
-import { getEmailError, getFullNameError, getNewPasswordError, getPasswordError, normalizeEmail } from '../../utils/validators'
+import { getEmailError, getFullNameError, getNewPasswordError, getPasswordError, normalizeEmail, verifyEmailDeliverable } from '../../utils/validators'
 import {
   ROUTES,
   SIGNUP_ROLE_OPTIONS,
@@ -100,15 +100,21 @@ export function Login() {
     setEmailError(getEmailError(email))
   }
 
+  function validatePassword(value: string): string | null {
+    return isLogin
+      ? getPasswordError(value)
+      : getNewPasswordError(value, { emptyMessage: 'Password is required.' })
+  }
+
   function handlePasswordBlur() {
-    setPasswordError(isLogin ? getPasswordError(password) : getNewPasswordError(password))
+    setPasswordError(validatePassword(password))
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const normalizedEmail = normalizeEmail(email)
     const emailErr = getEmailError(email)
-    const passwordErr = isLogin ? getPasswordError(password) : getNewPasswordError(password)
+    const passwordErr = validatePassword(password)
     const fullNameErr = isLogin ? null : getFullNameError(fullName)
 
     setEmailError(emailErr)
@@ -117,6 +123,14 @@ export function Login() {
 
     if (emailErr || passwordErr || fullNameErr) {
       return
+    }
+
+    if (!isLogin) {
+      const deliverabilityErr = await verifyEmailDeliverable(normalizedEmail)
+      if (deliverabilityErr) {
+        setEmailError(deliverabilityErr)
+        return
+      }
     }
 
     if (isLogin) {
@@ -247,9 +261,7 @@ export function Login() {
               onChange={(e) => {
                 setPassword(e.target.value)
                 if (passwordError) {
-                  setPasswordError(
-                    isLogin ? getPasswordError(e.target.value) : getNewPasswordError(e.target.value),
-                  )
+                  setPasswordError(validatePassword(e.target.value))
                 }
               }}
               onBlur={handlePasswordBlur}

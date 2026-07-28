@@ -11,8 +11,10 @@ import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Project } from '../../services/projectService'
 import { getProjectRunStatus } from '../../utils/projectStatus'
 import {
+  ACTIVE_GENERATION_JOB_KEY,
   OUTPUT_TYPES,
   ROUTES,
+  processingRoute,
   audioRoute,
   flashcardsRoute,
   illustrationRoute,
@@ -88,15 +90,28 @@ export function Library() {
   }, [projects, query])
 
   function openProject(project: Project) {
+    const runStatus = getProjectRunStatus(jobs[project.id])
+    if (runStatus === 'in_progress') {
+      navigate(processingRoute(project.id))
+      return
+    }
     navigate(projectRoute(project.id), { state: { name: project.name } })
   }
 
   async function handleRegenerate(project: Project) {
     setRegeneratingId(project.id)
-    const jobId = regenerateProject(project.id)
-    setRegeneratingId(null)
-    if (jobId) {
-      navigate(ROUTES.processing, { state: { jobId } })
+    try {
+      const jobId = await regenerateProject(project.id)
+      if (jobId) {
+        sessionStorage.setItem(ACTIVE_GENERATION_JOB_KEY, jobId)
+        navigate(processingRoute(jobId))
+      } else {
+        window.alert('Could not start regeneration. Open the project once, then try again.')
+      }
+    } catch {
+      window.alert('Could not start regeneration. Please try again.')
+    } finally {
+      setRegeneratingId(null)
     }
   }
 

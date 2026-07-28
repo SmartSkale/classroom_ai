@@ -103,6 +103,19 @@ class PasswordForgotRequest(BaseModel):
         return normalize_and_validate_email(value)
 
 
+class EmailValidateRequest(BaseModel):
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return normalize_and_validate_email(value)
+
+
+class EmailValidateResponse(BaseModel):
+    email: EmailStr
+
+
 class PasswordResetRequest(BaseModel):
     token: str = Field(min_length=20, max_length=256)
     new_password: str = Field(min_length=8, max_length=64)

@@ -184,7 +184,7 @@ export function Flashcards() {
               )}
               {genError && <p className="flashcards-error">{genError}</p>}
               {!studentView && !getStepFailure(job, 'flashcards') && (
-                <Button variant="primary" onClick={handleGenerate}>
+                <Button variant="outline" onClick={handleGenerate}>
                   Generate Flashcards
                 </Button>
               )}
@@ -228,15 +228,15 @@ export function Flashcards() {
           </div>
 
           <div className="flashcards-actions">
-            <Button variant="ghost" onClick={handleShuffle}>
+            <Button variant="outline" onClick={handleShuffle}>
               🔀 Shuffle
             </Button>
             {!studentView && (
-              <Button variant="primary" onClick={handleDownloadPdf}>
+              <Button variant="outline" onClick={handleDownloadPdf}>
                 Download PDF
               </Button>
             )}
-            <Button variant="ghost" onClick={handleReset} disabled={index === 0 && !shuffledOn}>
+            <Button variant="outline" onClick={handleReset} disabled={index === 0 && !shuffledOn}>
               Reset
             </Button>
           </div>
@@ -249,6 +249,7 @@ export function Flashcards() {
         projectName={projectName}
         sourceText={sourceText}
         studentView={studentView}
+        outlineOnly
       />
 
       {toast && (

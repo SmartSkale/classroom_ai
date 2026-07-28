@@ -193,7 +193,7 @@ export function Video() {
 
       <div className="video-actions">
         {!studentView && (
-          <Button variant="primary" onClick={() => void handleDownload()} disabled={!isComplete || downloading}>
+          <Button variant="outline" onClick={() => void handleDownload()} disabled={!isComplete || downloading}>
             {downloading ? 'Downloading…' : 'Download MP4'}
           </Button>
         )}
@@ -205,6 +205,7 @@ export function Video() {
         projectName={projectName}
         sourceText={job?.sourceText}
         studentView={studentView}
+        outlineOnly
       />
     </div>
   )

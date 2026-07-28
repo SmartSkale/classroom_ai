@@ -59,6 +59,13 @@ export function getProjectRunStatus(job: GenerationJob | undefined): ProjectRunS
   return 'partial'
 }
 
+/** Jobs that are still generating, newest first. */
+export function getInProgressJobs(jobs: Record<string, GenerationJob>): GenerationJob[] {
+  return Object.values(jobs)
+    .filter((job) => getProjectRunStatus(job) === 'in_progress')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
 export function hasProjectFailures(job: GenerationJob | undefined): boolean {
   if (!job) return false
   return getFailedSteps(job).length > 0

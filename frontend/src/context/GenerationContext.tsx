@@ -37,7 +37,7 @@ function normalizeOutputLanguage(raw: unknown): OutputLanguageId {
 
 /** Ensure older persisted jobs without outputLanguage still work. */
 function normalizeJob(job: GenerationJob): GenerationJob {
-  return {
+  const normalized = {
     ...job,
     outputLanguage: normalizeOutputLanguage(job.outputLanguage),
     steps: (job.steps ?? []).map((step) => ({
@@ -45,22 +45,55 @@ function normalizeJob(job: GenerationJob): GenerationJob {
       error: step.error !== undefined ? formatStepError(step.error) : undefined,
     })),
   }
+  return repairStuckExtractStep(normalized)
 }
 
-function buildSteps(outputs: OutputTypeId[]): GenerationStep[] {
+/** Fix jobs where regenerate skipped extract but left that step pending/in_progress. */
+function repairStuckExtractStep(job: GenerationJob): GenerationJob {
+  const extract = job.steps.find((s) => s.key === 'extract')
+  if (!extract || extract.status === 'done' || extract.status === 'failed') return job
+
+  const outputSteps = job.steps.filter((s) => s.key !== 'extract')
+  if (outputSteps.length === 0) return job
+
+  const outputsSettled = outputSteps.every(
+    (s) => s.status === 'done' || s.status === 'failed',
+  )
+  if (!outputsSettled) return job
+
+  const steps = job.steps.map((s) =>
+    s.key === 'extract' ? { ...s, status: 'done' as StepStatus } : s,
+  )
+  const { progress, done } = recompute(steps)
+  return { ...job, steps, progress, done }
+}
+
+function buildSteps(
+  outputs: OutputTypeId[],
+  options?: { skipExtract?: boolean },
+): GenerationStep[] {
+  const outputSteps = outputs.map((o) => ({
+    key: o,
+    label: `Generating ${outputLabel(o)}`,
+    status: 'pending' as StepStatus,
+  }))
+  if (options?.skipExtract) return outputSteps
   return [
     { key: 'extract', label: 'Extracting content', status: 'pending' as StepStatus },
-    ...outputs.map((o) => ({
-      key: o,
-      label: `Generating ${outputLabel(o)}`,
-      status: 'pending' as StepStatus,
-    })),
+    ...outputSteps,
   ]
 }
 
 function recompute(steps: GenerationStep[]): { progress: number; done: boolean } {
-  const settled = steps.filter((s) => s.status === 'done' || s.status === 'failed').length
-  const progress = steps.length ? Math.round((settled / steps.length) * 100) : 100
+  if (!steps.length) return { progress: 100, done: true }
+
+  let weighted = 0
+  for (const step of steps) {
+    if (step.status === 'done' || step.status === 'failed') weighted += 1
+    else if (step.status === 'in_progress') weighted += 0.2
+  }
+
+  const progress = Math.min(100, Math.round((weighted / steps.length) * 100))
   const done = steps.every((s) => s.status === 'done' || s.status === 'failed')
   return { progress, done }
 }
@@ -96,6 +129,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false)
   const jobsRef = useRef(jobs)
   jobsRef.current = jobs
+
+  const runGenerationRef = useRef<Record<string, number>>({})
+
+  const bumpRunGeneration = useCallback((id: string): number => {
+    const next = (runGenerationRef.current[id] ?? 0) + 1
+    runGenerationRef.current[id] = next
+    return next
+  }, [])
+
+  const isCurrentRun = useCallback((id: string, generation: number): boolean => {
+    return runGenerationRef.current[id] === generation
+  }, [])
 
   const pendingPersist = useRef<Set<string>>(new Set())
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -194,7 +239,11 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         }
 
         // Prefer in-memory jobs started while the API load was in flight.
-        setJobs((prev) => ({ ...map, ...prev }))
+        setJobs((prev) => {
+          const merged = { ...map, ...prev }
+          jobsRef.current = merged
+          return merged
+        })
       } catch {
         if (!cancelled) {
           const legacy = loadLegacyStoredJobs()
@@ -221,12 +270,23 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const commitJob = useCallback(
+    (id: string, job: GenerationJob) => {
+      jobsRef.current = { ...jobsRef.current, [id]: job }
+      setJobs((prev) => ({ ...prev, [id]: job }))
+      schedulePersist(id)
+    },
+    [schedulePersist],
+  )
+
   const updateJob = useCallback(
     (id: string, mutate: (job: GenerationJob) => GenerationJob) => {
+      const current = jobsRef.current[id]
+      if (!current) return
+      const next = mutate(current)
+      jobsRef.current = { ...jobsRef.current, [id]: next }
       setJobs((prev) => {
-        const current = prev[id]
-        if (!current) return prev
-        const next = mutate(current)
+        if (!prev[id]) return prev
         return { ...prev, [id]: next }
       })
       schedulePersist(id)
@@ -260,7 +320,10 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       source: string,
       outputLanguage: OutputLanguageId,
       preExplain?: Explanation,
+      runGeneration?: number,
     ) => {
+      if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
+
       setStep(id, output, { status: 'in_progress' })
       try {
         switch (output) {
@@ -333,22 +396,42 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           default:
             throw new Error(`Unsupported output type: ${output}`)
         }
+        if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
         setStep(id, output, { status: 'done' })
       } catch (err) {
+        if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
         setStep(id, output, { status: 'failed', error: errorMessage(err) })
       }
     },
-    [setResult, setStep],
+    [isCurrentRun, setResult, setStep],
   )
 
   const run = useCallback(
-    async (id: string, input: StartGenerationInput, options?: { skipExtract?: boolean }) => {
+    async (
+      id: string,
+      input: StartGenerationInput,
+      options?: { skipExtract?: boolean; generation?: number },
+    ) => {
+      const generation = options?.generation ?? bumpRunGeneration(id)
+      const active = () => isCurrentRun(id, generation)
+
       const name = input.name.trim()
       const files = input.files ?? []
       const outputLanguage = normalizeOutputLanguage(input.outputLanguage)
 
       if (!options?.skipExtract) {
         setStep(id, 'extract', { status: 'in_progress' })
+      } else {
+        // Regeneration reuses saved source text — skip extract step in the pipeline.
+        updateJob(id, (job) => {
+          const extractStep = job.steps.find((s) => s.key === 'extract')
+          if (!extractStep || extractStep.status === 'done') return job
+          const steps = job.steps.map((s) =>
+            s.key === 'extract' ? { ...s, status: 'done' as StepStatus } : s,
+          )
+          const { progress, done } = recompute(steps)
+          return { ...job, steps, progress, done }
+        })
       }
 
       let sourceText = input.text?.trim() ?? jobsRef.current[id]?.sourceText ?? ''
@@ -399,16 +482,19 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             sourceText,
             outputLanguage,
             output === 'explanation' ? fileExplanation : undefined,
+            generation,
           ),
         ),
       )
+
+      if (!active()) return
 
       updateJob(id, (job) => {
         const { progress, done } = recompute(job.steps)
         return { ...job, progress, done }
       })
     },
-    [runOutput, setStep, updateJob],
+    [bumpRunGeneration, isCurrentRun, runOutput, setStep, updateJob],
   )
 
   const startGeneration = useCallback(
@@ -428,30 +514,83 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         error: null,
         createdAt: new Date().toISOString(),
       }
-      setJobs((prev) => ({ ...prev, [id]: job }))
-      schedulePersist(id)
-      void run(id, { ...input, outputLanguage })
+      const generation = bumpRunGeneration(id)
+      commitJob(id, job)
+      void run(id, { ...input, outputLanguage }, { generation })
       return id
     },
-    [run, schedulePersist],
+    [bumpRunGeneration, commitJob, run],
   )
 
+  const deleteProject = useCallback(
+    async (id: string) => {
+      pendingPersist.current.delete(id)
+      await projectService.deleteProject(id)
+      jobsRef.current = { ...jobsRef.current }
+      delete jobsRef.current[id]
+      setJobs((prev) => {
+        const { [id]: _removed, ...rest } = prev
+        return rest
+      })
+    },
+    [],
+  )
+
+  const loadProject = useCallback(async (id: string): Promise<GenerationJob | undefined> => {
+    const existing = jobsRef.current[id]
+    if (existing) {
+      // Keep an active in-memory regeneration; don't replace with stale API data.
+      if (!existing.done) return existing
+      return existing
+    }
+
+    try {
+      const project = await projectService.getProject(id)
+      if (!isGenerationJob(project.job)) return undefined
+      const normalized = normalizeJob({ ...project.job, id: project.id })
+
+      const inMemory = jobsRef.current[id]
+      if (inMemory && !inMemory.done) return inMemory
+
+      jobsRef.current = { ...jobsRef.current, [id]: normalized }
+      setJobs((prev) => ({ ...prev, [id]: normalized }))
+      return normalized
+    } catch {
+      return undefined
+    }
+  }, [])
+
   const regenerateProject = useCallback(
-    (id: string): string | null => {
-      const existing = jobsRef.current[id]
+    async (id: string): Promise<string | null> => {
+      let existing: GenerationJob | undefined = jobsRef.current[id]
+      if (!existing) {
+        existing = await loadProject(id)
+      }
       if (!existing) return null
 
       const outputLanguage = normalizeOutputLanguage(existing.outputLanguage)
+      let steps = buildSteps(existing.outputs, { skipExtract: true })
+      if (steps.length > 0) {
+        steps = [
+          { ...steps[0], status: 'in_progress' as StepStatus },
+          ...steps.slice(1),
+        ]
+      }
+      const { progress, done } = recompute(steps)
 
-      updateJob(id, () => ({
+      const resetJob: GenerationJob = {
         ...existing,
         outputLanguage,
-        steps: buildSteps(existing.outputs),
+        sourceText: existing.sourceText,
+        steps,
         results: {},
-        progress: 0,
-        done: false,
+        progress,
+        done,
         error: null,
-      }))
+      }
+
+      const generation = bumpRunGeneration(id)
+      commitJob(id, resetJob)
 
       void run(
         id,
@@ -461,11 +600,11 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           outputs: existing.outputs,
           outputLanguage,
         },
-        { skipExtract: true },
+        { skipExtract: true, generation },
       )
       return id
     },
-    [run, updateJob],
+    [bumpRunGeneration, commitJob, loadProject, run],
   )
 
   const getJob = useCallback((id: string | undefined) => (id ? jobsRef.current[id] : undefined), [])
@@ -481,35 +620,9 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
   const importSharedJob = useCallback((job: GenerationJob) => {
     if (!isGenerationJob(job)) return
-    // Assignment / share-link snapshots stay in memory only (students are not project owners).
-    setJobs((prev) => ({ ...prev, [job.id]: normalizeJob(job) }))
-  }, [])
-
-  const deleteProject = useCallback(
-    async (id: string) => {
-      pendingPersist.current.delete(id)
-      await projectService.deleteProject(id)
-      setJobs((prev) => {
-        const { [id]: _removed, ...rest } = prev
-        return rest
-      })
-    },
-    [],
-  )
-
-  const loadProject = useCallback(async (id: string): Promise<GenerationJob | undefined> => {
-    const existing = jobsRef.current[id]
-    if (existing) return existing
-
-    try {
-      const project = await projectService.getProject(id)
-      if (!isGenerationJob(project.job)) return undefined
-      const normalized = normalizeJob({ ...project.job, id: project.id })
-      setJobs((prev) => ({ ...prev, [id]: normalized }))
-      return normalized
-    } catch {
-      return undefined
-    }
+    const normalized = normalizeJob(job)
+    jobsRef.current = { ...jobsRef.current, [job.id]: normalized }
+    setJobs((prev) => ({ ...prev, [job.id]: normalized }))
   }, [])
 
   return (

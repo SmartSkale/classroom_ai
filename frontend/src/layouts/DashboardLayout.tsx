@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { GenerationProgressBanner } from '../components/GenerationProgressBanner'
 import { useAuth } from '../hooks/useAuth'
-import { ROUTES } from '../utils/constants'
+import { useGeneration } from '../context/generation-context'
+import { ROUTES, processingRoute } from '../utils/constants'
+import { getInProgressJobs } from '../utils/projectStatus'
 import {
   canCreateContent,
   canManageGroups,
@@ -139,6 +142,20 @@ function HomeIcon() {
   )
 }
 
+function GeneratingNavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="dash-nav-svg">
+      <path
+        d="M12 3v3M12 18v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M3 12h3M18 12h3"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  )
+}
+
 const BACK_TO_HOME_ITEM: NavItem = {
   label: 'Back to Home',
   to: ROUTES.home,
@@ -195,7 +212,10 @@ function buildNavSections(user: ReturnType<typeof useAuth>['user']): NavSection[
 
 export function DashboardLayout() {
   const { user } = useAuth()
+  const { jobs } = useGeneration()
   const navSections = buildNavSections(user)
+  const inProgressJobs = canCreateContent(user) ? getInProgressJobs(jobs) : []
+  const activeGeneration = inProgressJobs[0]
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(SIDEBAR_STATE_KEY) === '1',
   )
@@ -265,6 +285,18 @@ export function DashboardLayout() {
                   <span className="dash-nav-label">{item.label}</span>
                 </NavLink>
               ))}
+              {section.title === 'LEARN' && activeGeneration && (
+                <NavLink
+                  to={processingRoute(activeGeneration.id)}
+                  className="dash-nav-link dash-nav-link-generating"
+                  title={`Generating ${activeGeneration.name}`}
+                >
+                  <NavIcon><GeneratingNavIcon /></NavIcon>
+                  <span className="dash-nav-label">
+                    Generating ({activeGeneration.progress}%)
+                  </span>
+                </NavLink>
+              )}
             </div>
           ))}
         </nav>
@@ -283,6 +315,7 @@ export function DashboardLayout() {
       </aside>
 
       <div className="dash-main">
+        {canCreateContent(user) && <GenerationProgressBanner />}
         <div className="dash-content">
           <Outlet />
         </div>

@@ -1,0 +1,53 @@
+.session-timeout-modal {
+  max-width: 420px;
+}
+
+.session-timeout-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.session-timeout-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.session-timeout-message {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.session-timeout-submessage {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.session-timeout-countdown {
+  margin: 0.75rem 0 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-timeout-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.session-timeout-reset {
+  min-width: 8rem;
+  border-radius: 999px;
+}

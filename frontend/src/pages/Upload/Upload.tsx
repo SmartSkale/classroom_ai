@@ -6,6 +6,7 @@ import { useGeneration } from '../../context/generation-context'
 import { canCreateContent } from '../../utils/roles'
 import explanationService from '../../services/explanationService'
 import {
+  ACTIVE_GENERATION_JOB_KEY,
   ACCEPTED_FILE_EXTENSIONS,
   DEFAULT_OUTPUT_TYPES,
   MAX_FILE_BYTES,
@@ -16,12 +17,13 @@ import {
   PROJECT_NAME_MAX,
   PROJECT_NAME_MIN,
   ROUTES,
+  processingRoute,
   type OutputLanguageId,
   type OutputTypeId,
 } from '../../utils/constants'
 import './Upload.css'
 
-const ACCEPT_ATTR = '.pdf,.png,.jpg,.jpeg,.docx'
+const ACCEPT_ATTR = '.pdf,.png,.jpg,.jpeg'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -199,7 +201,8 @@ export function Upload() {
       outputs,
       outputLanguage,
     })
-    navigate(ROUTES.processing, { state: { jobId } })
+    sessionStorage.setItem(ACTIVE_GENERATION_JOB_KEY, jobId)
+    navigate(processingRoute(jobId))
   }
 
   return (

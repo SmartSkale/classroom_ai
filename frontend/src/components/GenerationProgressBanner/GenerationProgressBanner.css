@@ -1,0 +1,87 @@
+.gen-progress-banner {
+  flex-shrink: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.gen-progress-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 1.25rem;
+}
+
+.gen-progress-icon {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: var(--accent);
+  animation: gen-progress-spin 2.5s linear infinite;
+}
+
+@keyframes gen-progress-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gen-progress-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.gen-progress-banner-title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.gen-progress-banner-detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.gen-progress-banner-link {
+  flex-shrink: 0;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--surface);
+  transition: var(--btn-transition);
+}
+
+.gen-progress-banner-link:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.gen-progress-banner-track {
+  height: 3px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+
+.gen-progress-banner-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  transition: width 0.4s ease;
+}
+
+@media (max-width: 640px) {
+  .gen-progress-banner-inner {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .gen-progress-banner-link {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -8,7 +8,7 @@ import { useGeneration } from '../../context/generation-context'
 import { StudentDashboard } from '../StudentDashboard'
 import { projectService, type Project } from '../../services/projectService'
 import { getProjectRunStatus } from '../../utils/projectStatus'
-import { ROUTES, projectRoute } from '../../utils/constants'
+import { ROUTES, processingRoute, projectRoute } from '../../utils/constants'
 import { formatRelativeTime } from '../../utils/formatDate'
 import { canCreateContent, getDashboardSubtitle } from '../../utils/roles'
 import type { ProjectType } from '../../utils/projectStorage'
@@ -87,9 +87,14 @@ export function Dashboard() {
                 <button
                   key={project.id}
                   className="project-card"
-                  onClick={() =>
+                  onClick={() => {
+                    const runStatus = getProjectRunStatus(jobs[project.id])
+                    if (runStatus === 'in_progress') {
+                      navigate(processingRoute(project.id))
+                      return
+                    }
                     navigate(projectRoute(project.id), { state: { name: project.name } })
-                  }
+                  }}
                 >
                   <div className={`project-thumb ${meta.className}`} aria-hidden="true">
                     {meta.icon}
