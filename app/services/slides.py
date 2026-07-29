@@ -171,11 +171,15 @@ def _build_pptx_bytes(
     from pptx import Presentation
     from pptx.dml.color import RGBColor
     from pptx.enum.shapes import MSO_SHAPE
-    from pptx.enum.text import MSO_ANCHOR
+    from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
     from pptx.util import Inches, Pt
 
     prs = Presentation()
+    # Match 16:9 background assets and modern widescreen displays.
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
     sw, sh = prs.slide_width, prs.slide_height
+    margin_x = Inches(0.85)
 
     try:
         prs.core_properties.title = deck_title[:200]
@@ -210,9 +214,11 @@ def _build_pptx_bytes(
     accent_bar.fill.fore_color.rgb = _rgb(56, 189, 248)
     accent_bar.line.fill.background()
 
-    tb0 = s0.shapes.add_textbox(Inches(1.1), Inches(2.05), Inches(11.2), Inches(1.35))
+    title_w = sw - Inches(1.1) - margin_x
+    tb0 = s0.shapes.add_textbox(Inches(1.1), Inches(2.05), title_w, Inches(1.35))
     tf0 = tb0.text_frame
     tf0.word_wrap = True
+    tf0.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     tf0.text = deck_title[:200]
     p0 = tf0.paragraphs[0]
     p0.font.size = Pt(40)
@@ -220,14 +226,16 @@ def _build_pptx_bytes(
     p0.font.color.rgb = _rgb(248, 250, 252)
     p0.line_spacing = 1.05
 
-    sub0 = s0.shapes.add_textbox(Inches(1.1), Inches(3.55), Inches(11.0), Inches(1.1))
+    sub0 = s0.shapes.add_textbox(Inches(1.1), Inches(3.55), title_w, Inches(1.1))
     sf0 = sub0.text_frame
+    sf0.word_wrap = True
+    sf0.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     sf0.text = topic[:320]
     sp0 = sf0.paragraphs[0]
     sp0.font.size = Pt(18)
     sp0.font.color.rgb = _rgb(186, 198, 216)
 
-    foot = s0.shapes.add_textbox(Inches(0.9), Inches(6.55), Inches(11.5), Inches(0.55))
+    foot = s0.shapes.add_textbox(Inches(0.9), sh - Inches(0.95), sw - Inches(0.9) - margin_x, Inches(0.55))
     ff = foot.text_frame
     ff.text = "ClassroomAI"
     fp = ff.paragraphs[0]
@@ -252,22 +260,25 @@ def _build_pptx_bytes(
             body_left = Inches(0.55)
             body_w = Inches(5.0)
             body_top = Inches(1.55)
-            body_h = Inches(4.85)
+            body_h = sh - body_top - Inches(0.45)
         else:
-            leg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(4.65), sw, Inches(2.85))
+            leg_h = Inches(2.85)
+            leg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, sh - leg_h, sw, leg_h)
             leg.fill.solid()
             leg.fill.fore_color.rgb = _rgb(8, 10, 20)
             leg.fill.transparency = 0.28
             leg.line.fill.background()
             title_left = Inches(0.65)
-            title_w = Inches(11.5)
+            title_w = sw - Inches(0.65) - margin_x
             body_left = Inches(0.75)
-            body_w = Inches(11.2)
+            body_w = sw - Inches(0.75) - margin_x
             body_top = Inches(1.45)
-            body_h = Inches(4.9)
+            body_h = sh - body_top - Inches(0.45)
 
         tbox = slide.shapes.add_textbox(title_left, Inches(0.42), title_w, Inches(0.95))
         ttf = tbox.text_frame
+        ttf.word_wrap = True
+        ttf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
         ttf.text = item.title[:250]
         tp = ttf.paragraphs[0]
         tp.font.size = Pt(30) if has_stock else Pt(32)
@@ -277,6 +288,7 @@ def _build_pptx_bytes(
         bbox = slide.shapes.add_textbox(body_left, body_top, body_w, body_h)
         tf = bbox.text_frame
         tf.word_wrap = True
+        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
         tf.vertical_anchor = MSO_ANCHOR.TOP
         bullets = item.bullets[:8] or ["—"]
         tf.text = bullets[0][:500]

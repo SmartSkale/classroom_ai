@@ -7,11 +7,10 @@ import { Loader } from '../../components/Loader'
 import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
+import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import {
-  explanationService,
-  type Explanation as ExplanationData,
-} from '../../services/explanationService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
+import { type Explanation as ExplanationData } from '../../services/explanationService'
 import {
   ROUTES,
   quizTakeRoute,
@@ -34,6 +33,7 @@ export function Explanation() {
   const navigate = useNavigate()
   const location = useLocation()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
+  const { regenerateOutput } = useGeneration()
   const { user } = useAuth()
   const studentView = isStudent(user)
   const navState = location.state as { name?: string; text?: string } | null
@@ -42,17 +42,22 @@ export function Explanation() {
   // Content was already generated during upload; show it from the job cache.
   const cachedExplanation = job?.results.explanation ?? null
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const outputLanguage = job?.outputLanguage ?? 'english'
 
   const [chapterText, setChapterText] = useState(sourceText)
   const [topicHint, setTopicHint] = useState(job?.name ?? navState?.name ?? '')
   const [content, setContent] = useState<ExplanationData | null>(cachedExplanation)
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'explanation',
+    false,
+    'Generating explanation…',
+  )
   const [error, setError] = useState<string | null>(null)
   const explanationFailed = getStepFailure(job, 'explanation')
   const [inputOpen, setInputOpen] = useState(!cachedExplanation && !explanationFailed)
 
-  const explanation = content ?? job?.results.explanation ?? null
+  const explanation =
+    isGenerating ? null : (content ?? job?.results.explanation ?? null)
 
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
@@ -63,31 +68,38 @@ export function Explanation() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
-  const generate = useCallback(
+  const startExplanationGeneration = useCallback(
     async (text: string, topic: string) => {
       if (!text.trim()) {
         setError('Paste some chapter text to generate an explanation.')
         setInputOpen(true)
         return
       }
-      setLoading(true)
+      if (!id) return
       setError(null)
-      try {
-        const result = await explanationService.generateExplanation({
-          chapterText: text,
-          topicHint: topic,
-          outputLanguage,
-        })
-        setContent(result)
+      setContent(null)
+      const ok = await regenerateOutput(id, 'explanation', {
+        sourceText: text,
+        topicHint: topic,
+      })
+      if (!ok) {
+        setError('Could not start explanation generation. Open the project once, then try again.')
+      } else {
         setInputOpen(false)
-      } catch {
-        setError('Explanation generation failed. Check your content and try again.')
-      } finally {
-        setLoading(false)
       }
     },
-    [outputLanguage],
+    [id, regenerateOutput],
   )
+
+  function handleRegenerate() {
+    const text = chapterText.trim() || sourceText.trim()
+    if (!text) {
+      setError('No source text available to regenerate the explanation.')
+      setInputOpen(true)
+      return
+    }
+    void startExplanationGeneration(text, topicHint.trim() || projectName)
+  }
 
   // The explanation is generated up front (during upload), so we only display
   // the cached result here — no generation happens on navigating into this page.
@@ -170,6 +182,14 @@ export function Explanation() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleRegenerate}
+                disabled={isGenerating || !sourceText.trim() && !chapterText.trim()}
+              >
+                {isGenerating ? 'Generating…' : 'Regenerate'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setInputOpen((v) => !v)}
               >
                 {inputOpen ? 'Hide edit' : 'Edit'}
@@ -210,26 +230,26 @@ export function Explanation() {
           </label>
           <Button
             variant="outline"
-            onClick={() => generate(chapterText, topicHint)}
-            disabled={loading}
+            onClick={() => startExplanationGeneration(chapterText, topicHint)}
+            disabled={isGenerating}
           >
-            {loading ? 'Generating…' : 'Generate Explanation'}
+            {isGenerating ? 'Generating…' : 'Generate Explanation'}
           </Button>
         </section>
       )}
 
-      {loading && <Loader label="Generating explanation…" />}
+      {isGenerating && <Loader label={generatingLabel} fullscreen />}
 
-      {!loading && error && (
+      {!isGenerating && error && (
         <div className="explanation-error" role="alert">
           <p>{error}</p>
-          <Button variant="outline" size="sm" onClick={() => generate(chapterText, topicHint)}>
+          <Button variant="outline" size="sm" onClick={() => startExplanationGeneration(chapterText, topicHint)}>
             Try again
           </Button>
         </div>
       )}
 
-      {!loading && !error && explanation && (
+      {!isGenerating && !error && explanation && (
         <>
           <article className="explanation-body md">
             <ReactMarkdown>{explanation.markdown}</ReactMarkdown>
@@ -278,6 +298,14 @@ export function Explanation() {
                 <Button variant="outline" size="sm" onClick={handleDownload}>
                   Download
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? 'Generating…' : 'Regenerate'}
+                </Button>
               </>
             )}
             {studentView && (!job || job.outputs.includes('quiz')) && (
@@ -295,7 +323,7 @@ export function Explanation() {
         </>
       )}
 
-      {!jobLoading && !loadError && !loading && !error && !explanation && job && (
+      {!jobLoading && !loadError && !isGenerating && !error && !explanation && job && (
         <section className="explanation-empty" aria-label="No explanation available">
           {hasProjectFailures(job) ? (
             <p>

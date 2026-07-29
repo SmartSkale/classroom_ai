@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Button } from '../../components/Button'
@@ -7,7 +7,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { generationService } from '../../services/generationService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import {
   INFOGRAPHIC_COLORS,
   INFOGRAPHIC_LAYOUTS,
@@ -22,7 +22,6 @@ interface Toast {
   message: string
 }
 
-const GENERATE_ERROR = 'Infographic generation failed. Try a different layout.'
 
 function slugify(name: string): string {
   return name.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'infographic'
@@ -40,20 +39,24 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function Infographic() {
   const { id = '' } = useParams()
   const location = useLocation()
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const outputLanguage = job?.outputLanguage ?? 'english'
   const cached = job?.results.infographic ?? null
 
   const [layout, setLayout] = useState<InfographicLayoutId>(INFOGRAPHIC_LAYOUTS[0].id)
   const [color, setColor] = useState<InfographicColorId>(INFOGRAPHIC_COLORS[0].id)
 
   const [image, setImage] = useState<string | null>(cached?.dataUrl ?? null)
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'infographic',
+    false,
+    'Generating infographic…',
+  )
   const [error, setError] = useState<string | null>(null)
 
   const [toast, setToast] = useState<Toast | null>(null)
@@ -65,23 +68,28 @@ export function Infographic() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
+  useEffect(() => {
+    if (cached?.dataUrl) {
+      setImage(cached.dataUrl)
+    } else if (isGenerating) {
+      setImage(null)
+    }
+  }, [cached?.dataUrl, isGenerating])
+
   async function handleGenerate() {
-    setLoading(true)
+    if (!id) return
     setError(null)
-    try {
-      const layoutPrompt = INFOGRAPHIC_LAYOUTS.find((l) => l.id === layout)?.prompt
-      const colorPrompt = INFOGRAPHIC_COLORS.find((c) => c.id === color)?.prompt
-      const result = await generationService.generateInfographic(projectName, sourceText, {
-        layoutPrompt,
-        colorPrompt,
-        outputLanguage,
-      })
-      cacheResults(id, { infographic: result })
-      setImage(result.dataUrl)
-    } catch {
-      setError(GENERATE_ERROR)
-    } finally {
-      setLoading(false)
+    setImage(null)
+    const layoutPrompt = INFOGRAPHIC_LAYOUTS.find((l) => l.id === layout)?.prompt
+    const colorPrompt = INFOGRAPHIC_COLORS.find((c) => c.id === color)?.prompt
+    const ok = await regenerateOutput(id, 'infographic', {
+      sourceText,
+      topicHint: projectName,
+      layoutPrompt,
+      colorPrompt,
+    })
+    if (!ok) {
+      setError('Could not start infographic generation. Open the project once, then try again.')
     }
   }
 
@@ -148,7 +156,7 @@ export function Infographic() {
           <select
             value={layout}
             onChange={(e) => setLayout(e.target.value as InfographicLayoutId)}
-            disabled={loading}
+            disabled={isGenerating}
             required
           >
             {INFOGRAPHIC_LAYOUTS.map((l) => (
@@ -164,7 +172,7 @@ export function Infographic() {
           <select
             value={color}
             onChange={(e) => setColor(e.target.value as InfographicColorId)}
-            disabled={loading}
+            disabled={isGenerating}
             required
           >
             {INFOGRAPHIC_COLORS.map((c) => (
@@ -181,8 +189,8 @@ export function Infographic() {
           </div>
         )}
 
-        {loading ? (
-          <Loader label="Generating infographic…" />
+        {isGenerating ? (
+          <Loader label={generatingLabel} fullscreen />
         ) : (
           <Button variant="outline" size="lg" onClick={handleGenerate}>
             {image ? 'Regenerate' : 'Generate Infographic'}
@@ -190,7 +198,7 @@ export function Infographic() {
         )}
       </section>
 
-      {image && !loading && (
+      {image && !isGenerating && (
         <section className="infographic-result" aria-label="Infographic preview">
           <div className="infographic-preview">
             <img src={image} alt={`${projectName} infographic`} />
@@ -202,8 +210,8 @@ export function Infographic() {
             <Button variant="outline" onClick={handleDownloadPdf}>
               Download PDF
             </Button>
-            <Button variant="outline" onClick={handleGenerate}>
-              Regenerate
+            <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? 'Generating…' : 'Regenerate'}
             </Button>
           </div>
         </section>

@@ -7,6 +7,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { generationService } from '../../services/generationService'
 import {
   AUDIO_LANGUAGES,
@@ -25,7 +26,6 @@ interface Toast {
   message: string
 }
 
-const GENERATE_ERROR = 'Audio generation failed. Try a different voice or language.'
 
 function speedRate(id: AudioSpeedId): number {
   return AUDIO_SPEEDS.find((s) => s.id === id)?.rate ?? 1
@@ -40,7 +40,7 @@ export function Audio() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
@@ -58,7 +58,12 @@ export function Audio() {
       AUDIO_LANGUAGES[0].id,
   )
 
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'audio',
+    false,
+    'Generating audio…',
+  )
   const [error, setError] = useState<string | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [filename, setFilename] = useState<string>('audio-lesson.mp3')
@@ -85,6 +90,16 @@ export function Audio() {
     setFilename(name)
     setAudioUrl(url)
   }, [])
+
+  // Clear the player while a new clip is being generated.
+  useEffect(() => {
+    if (!isGenerating) return
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    objectUrlRef.current = null
+    blobRef.current = null
+    setAudioUrl(null)
+    setNotice(null)
+  }, [isGenerating])
 
   // Restore a previously generated clip (from upfront generation) so the player
   // appears without regenerating.
@@ -122,26 +137,16 @@ export function Audio() {
       setError('Not enough lesson text to narrate. Add an explanation first.')
       return
     }
-    setLoading(true)
+    if (!id) return
     setError(null)
-    setNotice(null)
-    try {
-      const result = await generationService.generateAudio(sourceText, {
-        voice,
-        outputLanguage: language,
-      })
-      cacheResults(id, { audio: result })
-      const blob = await generationService.downloadAudio(result.audioId)
-      setBlob(blob, result.filename)
-      if (result.truncated) {
-        setNotice('The lesson was long, so only the first portion was narrated.')
-      } else if (result.translationApplied) {
-        setNotice('The lesson text was translated to match the selected language.')
-      }
-    } catch {
-      setError(GENERATE_ERROR)
-    } finally {
-      setLoading(false)
+    const ok = await regenerateOutput(id, 'audio', {
+      sourceText,
+      topicHint: projectName,
+      audioVoice: voice,
+      audioLanguage: language,
+    })
+    if (!ok) {
+      setError('Could not start audio generation. Open the project once, then try again.')
     }
   }
 
@@ -195,7 +200,7 @@ export function Audio() {
           <select
             value={voice}
             onChange={(e) => setVoice(e.target.value as AudioVoiceId)}
-            disabled={loading}
+            disabled={isGenerating}
             required
           >
             {AUDIO_VOICES.map((v) => (
@@ -227,7 +232,7 @@ export function Audio() {
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as AudioLanguageId)}
-            disabled={loading}
+            disabled={isGenerating}
             required
           >
             {AUDIO_LANGUAGES.map((l) => (
@@ -244,8 +249,8 @@ export function Audio() {
           </div>
         )}
 
-        {loading ? (
-          <Loader label="Generating audio…" />
+        {isGenerating ? (
+          <Loader label={generatingLabel} fullscreen />
         ) : (
           <div className="audio-generate">
             <Button variant="outline" size="lg" onClick={handleGenerate}>
@@ -256,13 +261,17 @@ export function Audio() {
       </section>
       )}
 
-      {studentView && !audioUrl && !loading && (
+      {studentView && !audioUrl && isGenerating && (
+        <Loader label={generatingLabel} fullscreen />
+      )}
+
+      {studentView && !audioUrl && !isGenerating && (
         <div className="audio-empty">
           <p>Audio is not available for this lesson yet.</p>
         </div>
       )}
 
-      {studentView && audioUrl && !loading && (
+      {studentView && audioUrl && !isGenerating && (
         <section className="audio-player-card" aria-label="Audio player">
           <h2 className="audio-player-title">Your audio lesson</h2>
           {notice && <p className="audio-notice">{notice}</p>}
@@ -291,7 +300,7 @@ export function Audio() {
         </section>
       )}
 
-      {!studentView && audioUrl && !loading && (
+      {!studentView && audioUrl && !isGenerating && (
         <section className="audio-player-card" aria-label="Audio player">
           <h2 className="audio-player-title">Your audio lesson</h2>
           {notice && <p className="audio-notice">{notice}</p>}
@@ -308,8 +317,8 @@ export function Audio() {
             <Button variant="outline" onClick={handleDownload}>
               Download MP3
             </Button>
-            <Button variant="outline" onClick={handleGenerate}>
-              Regenerate
+            <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? 'Generating…' : 'Regenerate'}
             </Button>
           </div>
         </section>

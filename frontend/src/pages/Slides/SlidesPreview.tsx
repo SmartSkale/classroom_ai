@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
+import { Loader } from '../../components/Loader'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { generationService } from '../../services/generationService'
 import { ROUTES, slidesRoute, type SlideThemeId } from '../../utils/constants'
 import type { SlideInclude, SlidePreviewNavState } from './Slides'
@@ -21,6 +23,12 @@ export function SlidesPreview() {
   const location = useLocation()
   const { jobs } = useGeneration()
   const job = jobs[id]
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'slides',
+    false,
+    'Generating slides…',
+  )
   const navState = (location.state ?? null) as SlidePreviewNavState | null
 
   const deck = job?.results.slides ?? null
@@ -70,10 +78,16 @@ export function SlidesPreview() {
           <span className="slides-breadcrumb-current">Slides</span>
         </nav>
         <div className="slides-empty">
-          <p>No slide deck to preview yet.</p>
-          <Button variant="outline" onClick={() => navigate(slidesRoute(id), { state: navState })}>
-            Configure slides
-          </Button>
+          {isGenerating ? (
+            <Loader label={generatingLabel} />
+          ) : (
+            <>
+              <p>No slide deck to preview yet.</p>
+              <Button variant="outline" onClick={() => navigate(slidesRoute(id), { state: navState })}>
+                Configure slides
+              </Button>
+            </>
+          )}
         </div>
       </div>
     )

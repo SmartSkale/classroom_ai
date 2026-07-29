@@ -176,6 +176,22 @@
     0 0 0 4px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+.library-output-chip-generating {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent-hover);
+  animation: library-chip-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes library-chip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
 .library-actions {
   display: flex;
   flex-wrap: wrap;

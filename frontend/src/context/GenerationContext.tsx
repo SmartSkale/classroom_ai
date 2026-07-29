@@ -15,6 +15,7 @@ import {
   GenerationContext,
   type GenerationJob,
   type GenerationStep,
+  type RegenerateOutputOptions,
   type StartGenerationInput,
   type StepStatus,
 } from './generation-context'
@@ -82,6 +83,42 @@ function buildSteps(
     { key: 'extract', label: 'Extracting content', status: 'pending' as StepStatus },
     ...outputSteps,
   ]
+}
+
+function clearOutputResult(
+  results: GenerationJob['results'],
+  output: OutputTypeId,
+): GenerationJob['results'] {
+  const next = { ...results }
+  switch (output) {
+    case 'explanation':
+      delete next.explanation
+      break
+    case 'quiz':
+      delete next.quiz
+      break
+    case 'slides':
+      delete next.slides
+      break
+    case 'flashcards':
+      delete next.flashcards
+      break
+    case 'audio':
+      delete next.audio
+      break
+    case 'infographic':
+      delete next.infographic
+      break
+    case 'illustration':
+      delete next.illustration
+      break
+    case 'video':
+      delete next.video
+      break
+    default:
+      break
+  }
+  return next
 }
 
 function recompute(steps: GenerationStep[]): { progress: number; done: boolean } {
@@ -321,6 +358,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       outputLanguage: OutputLanguageId,
       preExplain?: Explanation,
       runGeneration?: number,
+      outputOptions?: RegenerateOutputOptions,
     ) => {
       if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
 
@@ -339,11 +377,16 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             break
           }
           case 'quiz': {
+            const settings = outputOptions?.quizSettings ?? {
+              count: 10,
+              types: ['mcq'],
+              difficulty: 'medium',
+            }
             const quiz = await quizService.generateQuiz(
               {
                 topic: name,
                 contextText: source || undefined,
-                settings: { count: 10, types: ['mcq'], difficulty: 'medium' },
+                settings,
                 outputLanguage,
               },
               { force: true },
@@ -352,7 +395,10 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             break
           }
           case 'slides': {
-            const slides = await generationService.generateSlides(name, source, { outputLanguage })
+            const slides = await generationService.generateSlides(name, source, {
+              slideCount: outputOptions?.slideCount,
+              outputLanguage,
+            })
             setResult(id, { slides })
             break
           }
@@ -367,12 +413,17 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             if (source.trim().length < MIN_AUDIO_CHARS) {
               throw new Error('Not enough source text to narrate audio.')
             }
-            const audio = await generationService.generateAudio(source, { outputLanguage })
+            const audio = await generationService.generateAudio(source, {
+              voice: outputOptions?.audioVoice,
+              outputLanguage: outputOptions?.audioLanguage ?? outputLanguage,
+            })
             setResult(id, { audio })
             break
           }
           case 'infographic': {
             const infographic = await generationService.generateInfographic(name, source, {
+              layoutPrompt: outputOptions?.layoutPrompt,
+              colorPrompt: outputOptions?.colorPrompt,
               outputLanguage,
             })
             setResult(id, { infographic })
@@ -607,6 +658,62 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [bumpRunGeneration, commitJob, loadProject, run],
   )
 
+  const regenerateOutput = useCallback(
+    async (
+      id: string,
+      output: OutputTypeId,
+      options?: RegenerateOutputOptions,
+    ): Promise<boolean> => {
+      let existing: GenerationJob | undefined = jobsRef.current[id]
+      if (!existing) {
+        existing = await loadProject(id)
+      }
+      if (!existing) return false
+
+      const sourceText = options?.sourceText?.trim() || existing.sourceText
+      const name = options?.topicHint?.trim() || existing.name
+      const outputLanguage = normalizeOutputLanguage(existing.outputLanguage)
+
+      if (output === 'explanation' && !sourceText.trim()) return false
+      if (output === 'audio' && sourceText.trim().length < MIN_AUDIO_CHARS) return false
+      if (output === 'video' && sourceText.trim().length < MIN_VIDEO_CHARS) return false
+
+      const generation = bumpRunGeneration(id)
+
+      updateJob(id, (job) => {
+        const hasStep = job.steps.some((s) => s.key === output)
+        const steps = hasStep
+          ? job.steps.map((s) =>
+              s.key === output
+                ? { ...s, status: 'in_progress' as StepStatus, error: undefined }
+                : s,
+            )
+          : [
+              ...job.steps,
+              {
+                key: output,
+                label: `Generating ${outputLabel(output)}`,
+                status: 'in_progress' as StepStatus,
+              },
+            ]
+        const { progress, done } = recompute(steps)
+        return {
+          ...job,
+          sourceText: options?.sourceText?.trim() ? sourceText : job.sourceText,
+          steps,
+          results: clearOutputResult(job.results, output),
+          progress,
+          done,
+          error: null,
+        }
+      })
+
+      void runOutput(id, output, name, sourceText, outputLanguage, undefined, generation, options)
+      return true
+    },
+    [bumpRunGeneration, loadProject, runOutput, updateJob],
+  )
+
   const getJob = useCallback((id: string | undefined) => (id ? jobsRef.current[id] : undefined), [])
 
   const cacheResults = useCallback(
@@ -632,6 +739,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         hydrated,
         startGeneration,
         regenerateProject,
+        regenerateOutput,
         getJob,
         cacheResults,
         importSharedJob,

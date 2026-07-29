@@ -6,6 +6,8 @@ const LABEL_WIDTH = 22
 const LINE_HEIGHT = 14
 const BODY_FONT_SIZE = 11
 const LABEL_FONT_SIZE = 12
+const CARD_NUMBER_FONT_SIZE = 11
+const CARD_NUMBER_GAP = 18 // space between card number and Q/A labels
 
 /**
  * Build a printable flashcard PDF and return the raw bytes (for ZIP bundles).
@@ -74,7 +76,7 @@ function buildFlashcardsDoc(topic: string, cards: Flashcard[], order: number[]) 
 
     const frontLines = splitBodyText(card.front)
     const backLines = splitBodyText(card.back)
-    const headerHeight = 28
+    const headerHeight = CARD_NUMBER_FONT_SIZE + CARD_NUMBER_GAP
     const frontHeight = frontLines.length * LINE_HEIGHT
     const backHeight = backLines.length * LINE_HEIGHT
     const blockHeight =
@@ -83,11 +85,11 @@ function buildFlashcardsDoc(topic: string, cards: Flashcard[], order: number[]) 
     ensureSpace(blockHeight)
     const top = y
 
-    // Card number
+    // Card number (baseline at top of block; gap follows before Q/A)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
+    doc.setFontSize(CARD_NUMBER_FONT_SIZE)
     doc.setTextColor(90)
-    doc.text(`Card ${position + 1}`, margin + CARD_PADDING, y + 16)
+    doc.text(`Card ${position + 1}`, margin + CARD_PADDING, y + CARD_NUMBER_FONT_SIZE)
     doc.setTextColor(0)
     y += headerHeight
 

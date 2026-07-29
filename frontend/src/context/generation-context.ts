@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { OutputLanguageId, OutputTypeId } from '../utils/constants'
+import type { QuizSettings } from '../services/quizService'
 import type { Explanation } from '../services/explanationService'
 import type { QuizQuestion } from '../services/quizService'
 import type {
@@ -56,6 +57,17 @@ export interface StartGenerationInput {
   outputLanguage: OutputLanguageId
 }
 
+export interface RegenerateOutputOptions {
+  sourceText?: string
+  topicHint?: string
+  quizSettings?: QuizSettings
+  slideCount?: number
+  audioVoice?: string
+  audioLanguage?: OutputLanguageId
+  layoutPrompt?: string
+  colorPrompt?: string
+}
+
 export interface GenerationContextValue {
   jobs: Record<string, GenerationJob>
   /** True once projects have been loaded from the API (or migration finished). */
@@ -64,6 +76,12 @@ export interface GenerationContextValue {
   startGeneration: (input: StartGenerationInput) => string
   /** Re-run generation for an existing saved project. Returns the job id. */
   regenerateProject: (id: string) => Promise<string | null>
+  /** Re-run a single output; tracked on the job so UI survives tab switches. */
+  regenerateOutput: (
+    id: string,
+    output: OutputTypeId,
+    options?: RegenerateOutputOptions,
+  ) => Promise<boolean>
   getJob: (id: string | undefined) => GenerationJob | undefined
   /** Persist a (re)generated result into a job so other screens read it from cache. */
   cacheResults: (id: string, results: Partial<GenerationResults>) => void

@@ -4,7 +4,9 @@ import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
 import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailures'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
+import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { generationService } from '../../services/generationService'
 import { useAuth } from '../../hooks/useAuth'
 import { isStudent } from '../../utils/roles'
@@ -25,7 +27,14 @@ export function Video() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'video',
+    false,
+    'Generating video…',
+  )
   const navState = location.state as { name?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
@@ -100,6 +109,22 @@ export function Video() {
     }
   }, [cachedVideo, loadVideoFile])
 
+  async function handleRegenerate() {
+    if (!id) return
+    setError(null)
+    setVideoUrl(null)
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    objectUrlRef.current = null
+    blobRef.current = null
+    const ok = await regenerateOutput(id, 'video', {
+      sourceText: job?.sourceText,
+      topicHint: projectName,
+    })
+    if (!ok) {
+      setError('Could not start video generation. Open the project once, then try again.')
+    }
+  }
+
   async function handleDownload() {
     if (!cachedVideo?.videoId) return
     setDownloading(true)
@@ -138,13 +163,22 @@ export function Video() {
           </div>
         )}
 
-        {!jobLoading && !loadError && videoFailed && (
+        {!jobLoading && !loadError && isGenerating && (
+          <Loader label={generatingLabel} fullscreen />
+        )}
+
+        {!jobLoading && !loadError && !isGenerating && videoFailed && (
           <ProjectFailures job={job} stepKey="video" />
         )}
 
-        {!jobLoading && !loadError && !videoFailed && (
+        {!jobLoading && !loadError && !isGenerating && !videoFailed && (
           <div className="video-empty">
             <p>No video was generated for this project.</p>
+            {!studentView && (
+              <Button variant="outline" onClick={() => void handleRegenerate()}>
+                Generate Video
+              </Button>
+            )}
             <Button variant="outline" onClick={() => window.history.back()}>
               Go back
             </Button>
@@ -172,7 +206,7 @@ export function Video() {
 
       {!isComplete && !isFailed && (
         <div className="video-progress">
-          <Loader label={`Rendering video… (${status})`} />
+          <Loader label={isGenerating ? generatingLabel : `Rendering video… (${status})`} />
           {progress != null && (
             <p className="video-progress-label">{Math.round(progress * 100)}% complete</p>
           )}
@@ -193,9 +227,14 @@ export function Video() {
 
       <div className="video-actions">
         {!studentView && (
-          <Button variant="outline" onClick={() => void handleDownload()} disabled={!isComplete || downloading}>
-            {downloading ? 'Downloading…' : 'Download MP4'}
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => void handleDownload()} disabled={!isComplete || downloading}>
+              {downloading ? 'Downloading…' : 'Download MP4'}
+            </Button>
+            <Button variant="outline" onClick={() => void handleRegenerate()} disabled={isGenerating}>
+              {isGenerating ? 'Generating…' : 'Regenerate'}
+            </Button>
+          </>
         )}
       </div>
 

@@ -6,7 +6,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { generationService } from '../../services/generationService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { downloadFlashcardsPdf } from '../../utils/flashcardPdf'
 import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../utils/constants'
@@ -41,13 +41,12 @@ export function Flashcards() {
   const location = useLocation()
   const { user } = useAuth()
   const studentView = isStudent(user)
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const outputLanguage = job?.outputLanguage ?? 'english'
   const deck = job?.results.flashcards ?? null
   const cards = useMemo(() => deck?.cards ?? [], [deck])
 
@@ -56,7 +55,12 @@ export function Flashcards() {
   const [flipped, setFlipped] = useState(false)
   const [shuffledOn, setShuffledOn] = useState(false)
 
-  const [generating, setGenerating] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'flashcards',
+    false,
+    'Generating flashcards…',
+  )
   const [genError, setGenError] = useState<string | null>(null)
 
   const [toast, setToast] = useState<Toast | null>(null)
@@ -68,7 +72,6 @@ export function Flashcards() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
-  // Keep the order array in sync with the deck size (e.g. after generating).
   useEffect(() => {
     setOrder(sequential(cards.length))
     setIndex(0)
@@ -91,7 +94,6 @@ export function Flashcards() {
     setIndex((i) => Math.min(total - 1, i + 1))
   }, [total])
 
-  // Keyboard navigation: ← / → to move, space/enter to flip.
   useEffect(() => {
     if (total === 0) return
     function onKey(e: KeyboardEvent) {
@@ -132,17 +134,14 @@ export function Flashcards() {
   }
 
   async function handleGenerate() {
-    setGenerating(true)
+    if (!id) return
     setGenError(null)
-    try {
-      const result = await generationService.generateFlashcards(projectName, sourceText, {
-        outputLanguage,
-      })
-      cacheResults(id, { flashcards: result })
-    } catch {
-      setGenError('Could not generate flashcards. Try again.')
-    } finally {
-      setGenerating(false)
+    const ok = await regenerateOutput(id, 'flashcards', {
+      sourceText,
+      topicHint: projectName,
+    })
+    if (!ok) {
+      setGenError('Could not start flashcard generation. Open the project once, then try again.')
     }
   }
 
@@ -152,7 +151,7 @@ export function Flashcards() {
         <Link to={ROUTES.dashboard}>{projectName}</Link>
         <span aria-hidden="true">›</span>
         <span className="flashcards-breadcrumb-current">Flashcards</span>
-        {total > 0 && (
+        {total > 0 && !isGenerating && (
           <span className="flashcards-counter-inline">
             Card {index + 1} of {total}
           </span>
@@ -171,8 +170,8 @@ export function Flashcards() {
 
       {total === 0 ? (
         <div className="flashcards-empty">
-          {generating ? (
-            <Loader label="Generating flashcards…" />
+          {isGenerating ? (
+            <Loader label={generatingLabel} fullscreen />
           ) : (
             <>
               {!getStepFailure(job, 'flashcards') && (
@@ -184,12 +183,16 @@ export function Flashcards() {
               )}
               {genError && <p className="flashcards-error">{genError}</p>}
               {!studentView && !getStepFailure(job, 'flashcards') && (
-                <Button variant="outline" onClick={handleGenerate}>
+                <Button variant="outline" onClick={() => void handleGenerate()}>
                   Generate Flashcards
                 </Button>
               )}
             </>
           )}
+        </div>
+      ) : isGenerating ? (
+        <div className="flashcards-empty">
+          <Loader label={generatingLabel} fullscreen />
         </div>
       ) : (
         <>
@@ -232,9 +235,14 @@ export function Flashcards() {
               🔀 Shuffle
             </Button>
             {!studentView && (
-              <Button variant="outline" onClick={handleDownloadPdf}>
-                Download PDF
-              </Button>
+              <>
+                <Button variant="outline" onClick={handleDownloadPdf}>
+                  Download PDF
+                </Button>
+                <Button variant="outline" onClick={() => void handleGenerate()} disabled={isGenerating}>
+                  {isGenerating ? 'Generating…' : 'Regenerate'}
+                </Button>
+              </>
             )}
             <Button variant="outline" onClick={handleReset} disabled={index === 0 && !shuffledOn}>
               Reset

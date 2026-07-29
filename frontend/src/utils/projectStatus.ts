@@ -1,4 +1,5 @@
 import type { GenerationJob, GenerationStep } from '../context/generation-context'
+import type { OutputTypeId } from './constants'
 
 export type ProjectRunStatus = 'in_progress' | 'complete' | 'partial' | 'failed'
 
@@ -69,4 +70,40 @@ export function getInProgressJobs(jobs: Record<string, GenerationJob>): Generati
 export function hasProjectFailures(job: GenerationJob | undefined): boolean {
   if (!job) return false
   return getFailedSteps(job).length > 0
+}
+
+/** Step for an output type (quiz, slides, …), if present on the job. */
+export function getOutputStep(
+  job: GenerationJob | undefined,
+  stepKey: OutputTypeId,
+): GenerationStep | undefined {
+  if (!job) return undefined
+  return job.steps.find((s) => s.key === stepKey)
+}
+
+/**
+ * True while this output step is pending or actively generating.
+ * Works for single-output regeneration on already-complete projects too.
+ */
+export function isOutputStepActive(
+  job: GenerationJob | undefined,
+  stepKey: OutputTypeId,
+): boolean {
+  if (!job) return false
+  const step = getOutputStep(job, stepKey)
+  if (!step) return false
+  return step.status === 'pending' || step.status === 'in_progress'
+}
+
+/** User-facing loader label for an output step on an active pipeline run. */
+export function getOutputGeneratingLabel(
+  job: GenerationJob | undefined,
+  stepKey: OutputTypeId,
+  fallback: string,
+): string {
+  const step = getOutputStep(job, stepKey)
+  if (!step) return fallback
+  if (step.status === 'in_progress') return step.label
+  if (step.status === 'pending') return `Queued — ${step.label}`
+  return fallback
 }

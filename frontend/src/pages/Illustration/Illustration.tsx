@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Button } from '../../components/Button'
@@ -7,7 +7,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { generationService } from '../../services/generationService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { ROUTES } from '../../utils/constants'
 import './Illustration.css'
 
@@ -16,7 +16,6 @@ interface Toast {
   message: string
 }
 
-const GENERATE_ERROR = 'Illustration generation failed. Please try again.'
 
 function slugify(name: string): string {
   return name.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'illustration'
@@ -34,17 +33,21 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function Illustration() {
   const { id = '' } = useParams()
   const location = useLocation()
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const outputLanguage = job?.outputLanguage ?? 'english'
   const cached = job?.results.illustration ?? null
 
   const [image, setImage] = useState<string | null>(cached?.dataUrl ?? null)
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'illustration',
+    false,
+    'Generating illustration…',
+  )
   const [error, setError] = useState<string | null>(null)
 
   const [toast, setToast] = useState<Toast | null>(null)
@@ -56,19 +59,24 @@ export function Illustration() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
+  useEffect(() => {
+    if (cached?.dataUrl) {
+      setImage(cached.dataUrl)
+    } else if (isGenerating) {
+      setImage(null)
+    }
+  }, [cached?.dataUrl, isGenerating])
+
   async function handleGenerate() {
-    setLoading(true)
+    if (!id) return
     setError(null)
-    try {
-      const result = await generationService.generateIllustration(projectName, sourceText, {
-        outputLanguage,
-      })
-      cacheResults(id, { illustration: result })
-      setImage(result.dataUrl)
-    } catch {
-      setError(GENERATE_ERROR)
-    } finally {
-      setLoading(false)
+    setImage(null)
+    const ok = await regenerateOutput(id, 'illustration', {
+      sourceText,
+      topicHint: projectName,
+    })
+    if (!ok) {
+      setError('Could not start illustration generation. Open the project once, then try again.')
     }
   }
 
@@ -140,8 +148,8 @@ export function Illustration() {
           </div>
         )}
 
-        {loading ? (
-          <Loader label="Generating illustration…" />
+        {isGenerating ? (
+          <Loader label={generatingLabel} fullscreen />
         ) : (
           <Button variant="outline" size="lg" onClick={handleGenerate}>
             {image ? 'Regenerate' : 'Generate Illustration'}
@@ -149,7 +157,7 @@ export function Illustration() {
         )}
       </section>
 
-      {image && !loading && (
+      {image && !isGenerating && (
         <section className="illustration-result" aria-label="Illustration preview">
           <div className="illustration-preview">
             <img src={image} alt={`${projectName} illustration`} />
@@ -161,8 +169,8 @@ export function Illustration() {
             <Button variant="outline" onClick={handleDownloadPdf}>
               Download PDF
             </Button>
-            <Button variant="outline" onClick={handleGenerate}>
-              Regenerate
+            <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? 'Generating…' : 'Regenerate'}
             </Button>
           </div>
         </section>

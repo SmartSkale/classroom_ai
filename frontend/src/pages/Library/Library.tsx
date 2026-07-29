@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useGeneration } from '../../context/generation-context'
 import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Project } from '../../services/projectService'
-import { getProjectRunStatus } from '../../utils/projectStatus'
+import { getProjectRunStatus, isOutputStepActive } from '../../utils/projectStatus'
 import {
   ACTIVE_GENERATION_JOB_KEY,
   OUTPUT_TYPES,
@@ -204,20 +204,23 @@ export function Library() {
                 </button>
 
                 <div className="library-outputs">
-                  {project.outputs.map((output) => (
+                  {project.outputs.map((output) => {
+                    const outputGenerating = isOutputStepActive(job, output)
+                    return (
                     <button
                       key={output}
                       type="button"
-                      className="library-output-chip"
+                      className={`library-output-chip${outputGenerating ? ' library-output-chip-generating' : ''}`}
                       onClick={() =>
                         navigate(outputRoute(project.id, output), {
                           state: { name: project.name },
                         })
                       }
                     >
-                      {outputLabel(output)}
+                      {outputGenerating ? `${outputLabel(output)}…` : outputLabel(output)}
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 <div className="library-actions">

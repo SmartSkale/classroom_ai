@@ -6,7 +6,7 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { generationService } from '../../services/generationService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import {
   ROUTES,
   SLIDE_COUNT_OPTIONS,
@@ -29,20 +29,16 @@ export interface SlidePreviewNavState {
   include?: SlideInclude
 }
 
-const GENERATE_ERROR =
-  'Slides generation failed. Try with fewer slides or a different theme.'
-
 export function Slides() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const navState = location.state as { name?: string; text?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const outputLanguage = job?.outputLanguage ?? 'english'
   const cachedDeck = job?.results.slides ?? null
 
   const defaultCount = cachedDeck
@@ -57,7 +53,12 @@ export function Slides() {
     speakerNotes: false,
   })
 
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'slides',
+    false,
+    'Generating slides…',
+  )
   const [error, setError] = useState<string | null>(null)
 
   function toggleInclude(key: keyof SlideInclude) {
@@ -65,25 +66,15 @@ export function Slides() {
   }
 
   async function handleGenerate() {
-    setLoading(true)
+    if (!id) return
     setError(null)
-    try {
-      const deck = await generationService.generateSlides(projectName, sourceText, {
-        slideCount: count,
-        outputLanguage,
-      })
-      cacheResults(id, { slides: deck })
-      const state: SlidePreviewNavState = {
-        name: projectName,
-        text: sourceText || undefined,
-        theme,
-        include,
-      }
-      navigate(slidesPreviewRoute(id), { state })
-    } catch {
-      setError(GENERATE_ERROR)
-    } finally {
-      setLoading(false)
+    const ok = await regenerateOutput(id, 'slides', {
+      sourceText,
+      topicHint: projectName,
+      slideCount: count,
+    })
+    if (!ok) {
+      setError('Could not start slide generation. Open the project once, then try again.')
     }
   }
 
@@ -116,7 +107,7 @@ export function Slides() {
           <select
             value={count}
             onChange={(e) => setCount(Number(e.target.value))}
-            disabled={loading}
+            disabled={isGenerating}
           >
             {SLIDE_COUNT_OPTIONS.map((n) => (
               <option key={n} value={n}>
@@ -132,7 +123,7 @@ export function Slides() {
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value as SlideThemeId)}
-            disabled={loading}
+            disabled={isGenerating}
             required
           >
             {SLIDE_THEMES.map((t) => (
@@ -150,7 +141,7 @@ export function Slides() {
               type="checkbox"
               checked={include.images}
               onChange={() => toggleInclude('images')}
-              disabled={loading}
+              disabled={isGenerating}
             />
             <span>Images</span>
           </label>
@@ -159,7 +150,7 @@ export function Slides() {
               type="checkbox"
               checked={include.bullets}
               onChange={() => toggleInclude('bullets')}
-              disabled={loading}
+              disabled={isGenerating}
             />
             <span>Bullet Points</span>
           </label>
@@ -168,7 +159,7 @@ export function Slides() {
               type="checkbox"
               checked={include.speakerNotes}
               onChange={() => toggleInclude('speakerNotes')}
-              disabled={loading}
+              disabled={isGenerating}
             />
             <span>Speaker Notes</span>
           </label>
@@ -180,12 +171,12 @@ export function Slides() {
           </div>
         )}
 
-        {loading ? (
-          <Loader label="Generating slides…" />
+        {isGenerating ? (
+          <Loader label={generatingLabel} fullscreen />
         ) : (
           <div className="slides-actions">
-            <Button variant="outline" size="lg" onClick={handleGenerate}>
-              Generate Slides
+            <Button variant="outline" size="lg" onClick={() => void handleGenerate()} disabled={isGenerating}>
+              {isGenerating ? 'Generating…' : cachedDeck ? 'Regenerate Slides' : 'Generate Slides'}
             </Button>
             {cachedDeck && (
               <Button
@@ -202,7 +193,7 @@ export function Slides() {
                   })
                 }
               >
-                View existing deck
+                View Slides
               </Button>
             )}
           </div>

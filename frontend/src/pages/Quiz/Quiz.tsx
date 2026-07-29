@@ -6,7 +6,8 @@ import { ProjectFailures } from '../../components/ProjectFailures/ProjectFailure
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjectJob } from '../../hooks/useProjectJob'
-import { quizService, sanitizeQuizQuestions, type QuizQuestion, type QuizSettings } from '../../services/quizService'
+import { useProjectOutputState } from '../../hooks/useProjectOutputState'
+import { sanitizeQuizQuestions, type QuizQuestion } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
 import { isStudent } from '../../utils/roles'
 import { getStepFailure } from '../../utils/projectStatus'
@@ -31,14 +32,13 @@ export function Quiz() {
   const { id = '' } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { cacheResults } = useGeneration()
+  const { regenerateOutput } = useGeneration()
   const { user } = useAuth()
   const { job, loading: jobLoading, loadError } = useProjectJob(id)
   const studentView = isStudent(user)
   const navState = location.state as { name?: string; text?: string } | null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text
-  const outputLanguage = job?.outputLanguage ?? 'english'
 
   // The quiz was generated up front (during upload); show it from the cache.
   const cachedQuiz = job?.results.quiz ?? null
@@ -49,7 +49,12 @@ export function Quiz() {
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(
     cachedQuiz ? sanitizeQuizQuestions(cachedQuiz) : null,
   )
-  const [loading, setLoading] = useState(false)
+  const { isGenerating, generatingLabel } = useProjectOutputState(
+    job,
+    'quiz',
+    false,
+    'Generating quiz…',
+  )
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
@@ -60,25 +65,26 @@ export function Quiz() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3000)
   }, [])
 
-  const generate = useCallback(
-    async (settings: QuizSettings, force = false) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const result = await quizService.generateQuiz(
-          { topic: projectName, contextText: sourceText, settings, outputLanguage },
-          { force },
-        )
-        setQuestions(result)
-        if (id) cacheResults(id, { quiz: result })
-      } catch {
-        setError('Quiz generation failed. Check your content and try again.')
-      } finally {
-        setLoading(false)
-      }
-    },
-    [projectName, sourceText, outputLanguage, id, cacheResults],
-  )
+  const startQuizGeneration = useCallback(async () => {
+    if (!id) return
+    setError(null)
+    setQuestions(null)
+    const ok = await regenerateOutput(id, 'quiz', {
+      sourceText: sourceText ?? undefined,
+      topicHint: projectName,
+      quizSettings: { count, types: ['mcq'], difficulty },
+    })
+    if (!ok) {
+      setError('Could not start quiz generation. Open the project once, then try again.')
+    }
+  }, [id, regenerateOutput, sourceText, projectName, count, difficulty])
+
+  // Sync when the project pipeline finishes regenerating this output.
+  useEffect(() => {
+    if (job?.results.quiz) {
+      setQuestions(sanitizeQuizQuestions(job.results.quiz))
+    }
+  }, [job?.results.quiz])
 
   // No generation on navigating into this page — the quiz is produced up front
   // during upload. We only clean up the toast timer here.
@@ -87,7 +93,7 @@ export function Quiz() {
   }, [])
 
   function handleRegenerate() {
-    void generate({ count, types: ['mcq'], difficulty }, true)
+    void startQuizGeneration()
   }
 
   function handleDownload() {
@@ -155,9 +161,9 @@ export function Quiz() {
             variant="outline"
             fullWidth
             onClick={handleRegenerate}
-            disabled={loading}
+            disabled={isGenerating}
           >
-            {loading ? 'Generating…' : 'Regenerate'}
+            {isGenerating ? 'Generating…' : 'Regenerate'}
           </Button>
         </section>
         )}
@@ -175,9 +181,9 @@ export function Quiz() {
 
           {!jobLoading && !loadError && <ProjectFailures job={job} stepKey="quiz" />}
 
-          {loading && <Loader label="Generating quiz…" />}
+          {isGenerating && <Loader label={generatingLabel} fullscreen />}
 
-          {!loading && error && (
+          {!isGenerating && error && (
             <div className="quiz-error-box" role="alert">
               <p>{error}</p>
               <Button variant="outline" size="sm" onClick={handleRegenerate}>
@@ -186,7 +192,7 @@ export function Quiz() {
             </div>
           )}
 
-          {!loading && !error && !questions && !getStepFailure(job, 'quiz') && (
+          {!isGenerating && !error && !questions && !getStepFailure(job, 'quiz') && (
             <div className="quiz-error-box">
               <p>No quiz available yet. Adjust the settings and generate one.</p>
               <Button variant="outline" size="sm" onClick={handleRegenerate}>
@@ -195,7 +201,7 @@ export function Quiz() {
             </div>
           )}
 
-          {!loading && !error && questions && (
+          {!isGenerating && !error && questions && (
             <ol className="quiz-questions">
               {questions.map((q) => (
                 <li key={q.id} className="quiz-question">
@@ -216,15 +222,15 @@ export function Quiz() {
             </ol>
           )}
 
-          {!loading && !error && questions && questions.length > 0 && (
+          {!isGenerating && !error && questions && questions.length > 0 && (
             <div className="quiz-actions">
               {!studentView && (
                 <>
                   <Button variant="outline" onClick={handleDownload}>
                     Download
                   </Button>
-                  <Button variant="outline" onClick={handleRegenerate}>
-                    Regenerate
+                  <Button variant="outline" onClick={handleRegenerate} disabled={isGenerating}>
+                    {isGenerating ? 'Generating…' : 'Regenerate'}
                   </Button>
                 </>
               )}
