@@ -4,7 +4,7 @@ import {
   clearLegacyProjectStorage,
   loadLegacyStoredJobs,
 } from '../utils/projectStorage'
-import { explanationService, type Explanation } from '../services/explanationService'
+import { explanationService, type Explanation, ExplanationGenerationError } from '../services/explanationService'
 import { quizService } from '../services/quizService'
 import { generationService } from '../services/generationService'
 import { projectService } from '../services/projectService'
@@ -23,6 +23,10 @@ import {
 const MIN_AUDIO_CHARS = 20
 const MIN_VIDEO_CHARS = 120
 const PERSIST_DEBOUNCE_MS = 600
+const DEFAULT_EXTRACTION_ERROR =
+  'No text could be extracted from the uploaded file. Upload a PDF with selectable text, paste the content as plain text, or try image uploads instead.'
+const EXTRACTION_SKIPPED_OUTPUT_ERROR =
+  'Skipped — no lesson content was available from your upload.'
 const DEFAULT_OUTPUT_LANGUAGE: OutputLanguageId = 'english'
 
 function outputLabel(id: OutputTypeId): string {
@@ -364,6 +368,19 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
       setStep(id, output, { status: 'in_progress' })
       try {
+        if (
+          !source.trim() &&
+          (output === 'quiz' ||
+            output === 'slides' ||
+            output === 'flashcards' ||
+            output === 'infographic' ||
+            output === 'illustration')
+        ) {
+          throw new Error(
+            'Not enough source text. Upload a file with readable text or paste your lesson content.',
+          )
+        }
+
         switch (output) {
           case 'explanation': {
             const explanation =
@@ -485,8 +502,11 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         })
       }
 
-      let sourceText = input.text?.trim() ?? jobsRef.current[id]?.sourceText ?? ''
+      const pastedText = input.text?.trim() ?? ''
+      let sourceText = pastedText || jobsRef.current[id]?.sourceText || ''
       let fileExplanation: Explanation | undefined
+      let extractionBlocked = false
+      let extractionBlockReason = DEFAULT_EXTRACTION_ERROR
 
       if (!options?.skipExtract) {
         const canExtractFiles =
@@ -506,8 +526,47 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             fileExplanation = explanation
             if (extracted.trim()) sourceText = extracted.trim()
           } catch (err) {
-            setStep(id, 'extract', { status: 'failed', error: errorMessage(err) })
+            const msg = errorMessage(err)
+            if (err instanceof ExplanationGenerationError && err.sourceText.trim()) {
+              sourceText = err.sourceText.trim()
+              extractionBlockReason =
+                'Text was extracted from your PDF, but the explanation could not be generated. Other outputs will still be created.'
+              setStep(id, 'extract', { status: 'done' })
+            } else {
+              extractionBlockReason = msg
+              setStep(id, 'extract', { status: 'failed', error: msg })
+              if (!pastedText && !sourceText.trim()) extractionBlocked = true
+            }
           }
+        }
+
+        if (canExtractFiles && !pastedText && !sourceText.trim()) {
+          extractionBlocked = true
+        }
+
+        if (extractionBlocked) {
+          updateJob(id, (job) => {
+            const steps = job.steps.map((s) => {
+              if (s.key === 'extract') {
+                return {
+                  ...s,
+                  status: 'failed' as StepStatus,
+                  error: extractionBlockReason,
+                }
+              }
+              if (s.status === 'pending' || s.status === 'in_progress') {
+                return {
+                  ...s,
+                  status: 'failed' as StepStatus,
+                  error: EXTRACTION_SKIPPED_OUTPUT_ERROR,
+                }
+              }
+              return s
+            })
+            const { progress, done } = recompute(steps)
+            return { ...job, sourceText, steps, progress, done }
+          })
+          return
         }
 
         updateJob(id, (job) => ({ ...job, sourceText }))
@@ -674,7 +733,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       const name = options?.topicHint?.trim() || existing.name
       const outputLanguage = normalizeOutputLanguage(existing.outputLanguage)
 
-      if (output === 'explanation' && !sourceText.trim()) return false
+      if (!sourceText.trim()) return false
       if (output === 'audio' && sourceText.trim().length < MIN_AUDIO_CHARS) return false
       if (output === 'video' && sourceText.trim().length < MIN_VIDEO_CHARS) return false
 

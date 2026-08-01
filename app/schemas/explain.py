@@ -16,6 +16,15 @@ class ExplainFromTextRequest(BaseModel):
         default=None,
         description="Optional focus (e.g. section title) if the text covers multiple topics.",
     )
+    from_pdf: bool = Field(
+        default=False,
+        description="Set true when chapter_text was extracted from an uploaded PDF.",
+    )
+
+
+class PdfExtractResponse(BaseModel):
+    chapter_text: str = Field(..., description="Extracted plain text from the PDF.")
+    notes: str = Field(default="", description="Short summary (pages, tables, warnings).")
 
 
 class ExplainFromImagesRequest(BaseModel):

@@ -49,6 +49,13 @@ function firstReadyRoute(job: GenerationJob): string {
   return projectRoute(job.id)
 }
 
+function hasSuccessfulOutput(job: GenerationJob): boolean {
+  return job.outputs.some((output) => {
+    const step = job.steps.find((s) => s.key === output)
+    return step?.status === 'done'
+  })
+}
+
 /** Redirect bare `/processing` to the active job or upload. */
 export function ProcessingIndex() {
   const activeId = sessionStorage.getItem(ACTIVE_GENERATION_JOB_KEY)
@@ -94,6 +101,7 @@ export function Processing() {
 
   useEffect(() => {
     if (!resolvedJob?.done || !jobId) return
+    if (!hasSuccessfulOutput(resolvedJob)) return
     sessionStorage.removeItem(ACTIVE_GENERATION_JOB_KEY)
     const t = setTimeout(() => {
       navigate(firstReadyRoute(resolvedJob), {
@@ -125,6 +133,8 @@ export function Processing() {
   }
 
   const failedStep = resolvedJob.steps.find((s) => s.status === 'failed')
+  const extractFailed = resolvedJob.steps.find((s) => s.key === 'extract' && s.status === 'failed')
+  const anyOutputSucceeded = hasSuccessfulOutput(resolvedJob)
   const activeStep = resolvedJob.steps.find((s) => s.status === 'in_progress')
 
   return (
@@ -150,7 +160,23 @@ export function Processing() {
         </p>
       )}
 
-      {failedStep && (
+      {extractFailed && (
+        <div className="processing-alert" role="alert">
+          <strong>Could not read your uploaded file.</strong>{' '}
+          {formatStepError(extractFailed.error)}
+          {!anyOutputSucceeded ? (
+            <>
+              {' '}
+              No lesson content was generated. Upload a PDF with selectable text, paste your content
+              as plain text, or try image uploads instead.
+            </>
+          ) : (
+            <> Other outputs were generated using your pasted text.</>
+          )}
+        </div>
+      )}
+
+      {failedStep && !extractFailed && (
         <div className="processing-alert" role="alert">
           {failedStep.label.replace('Generating ', '')} failed
           {failedStep.error !== undefined
@@ -181,13 +207,18 @@ export function Processing() {
         at the top or return here anytime to check status.
       </p>
 
-      {resolvedJob.done && (
+      {resolvedJob.done && anyOutputSucceeded && (
         <section className="processing-download" aria-label="Download all materials">
           <DownloadAllButton job={resolvedJob} variant="primary" size="md" fullWidth />
         </section>
       )}
 
       <div className="processing-actions">
+        {resolvedJob.done && !anyOutputSucceeded ? (
+          <Button variant="primary" onClick={() => navigate(ROUTES.upload)}>
+            Back to upload
+          </Button>
+        ) : null}
         <Button variant="danger" onClick={() => setConfirmOpen(true)} disabled={resolvedJob.done}>
           Cancel Generation
         </Button>

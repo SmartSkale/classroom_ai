@@ -31,6 +31,23 @@ def _truncate(s: str, limit: int) -> tuple[str, bool]:
     return s[: limit - 20].rsplit("\n", 1)[0] + "\n\n[…truncated for model context…]", True
 
 
+def _page_text(page) -> str:
+    """Extract page text in reading order (top-to-bottom, left-to-right)."""
+    try:
+        blocks = page.get_text("blocks") or []
+        text_blocks = [
+            b for b in blocks if len(b) >= 5 and str(b[4] or "").strip()
+        ]
+        text_blocks.sort(key=lambda b: (round(b[1], 1), round(b[0], 1)))
+        parts = [str(b[4]).strip() for b in text_blocks]
+        ordered = "\n".join(p for p in parts if p).strip()
+        if ordered:
+            return ordered
+    except Exception:
+        pass
+    return (page.get_text("text") or "").strip()
+
+
 def _format_table(table: list[list[str | None]]) -> str:
     if not table:
         return ""
@@ -65,7 +82,7 @@ def extract_pdf_to_text(pdf_bytes: bytes) -> PdfExtractResult:
             page_num = i + 1
             block_lines: list[str] = []
 
-            native = (page.get_text("text") or "").strip()
+            native = _page_text(page)
             if native:
                 block_lines.append(native)
 

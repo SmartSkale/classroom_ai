@@ -1,3 +1,4 @@
+import re
 from typing import Literal, NamedTuple
 
 OutputLanguage = Literal[
@@ -57,6 +58,7 @@ LANGUAGE_META: dict[OutputLanguage, LanguageMeta] = {
             "- NEVER leave options or explanations in English (Latin letters), even if the "
             "source Context is English.\n"
             "- If the Context is English, TRANSLATE ideas into Hindi; do not paste English quotes.\n"
+            "- Write Hindi (हिंदी) only — do NOT use Marathi or other Devanagari languages.\n"
             "- Proper nouns / formulas may stay in Latin only when unavoidable."
         ),
         script_ranges=((0x0900, 0x097F),),
@@ -204,6 +206,27 @@ def looks_english_learner_text(text: str) -> bool:
     return latin >= 6 and latin > indic * 2
 
 
+_ROMAN_HINDI_HINT = re.compile(
+    r"\b(hai|hain|ka|ki|ke|ko|mein|se|aur|ya|nahi|kya|jo|wala|wali|tha|thi|the)\b",
+    re.IGNORECASE,
+)
+
+
+def learner_text_wrong_language(text: str, lang: OutputLanguage) -> bool:
+    """True when a learner-facing string is not in the requested output language."""
+    t = (text or "").strip()
+    if not t or lang == "english":
+        return False
+    if lang == "roman_hindi":
+        if not looks_english_learner_text(t):
+            return False
+        words = re.findall(r"[A-Za-z]+", t)
+        return len(words) >= 6 and not _ROMAN_HINDI_HINT.search(t)
+    if looks_english_learner_text(t):
+        return True
+    return not has_target_script(t, lang)
+
+
 def language_visible_text_rule(lang: OutputLanguage, *, surface: str = "visible labels") -> str:
     """Short clause for image/poster prompts about on-image language."""
     name = LANGUAGE_META[lang].display_name
@@ -258,7 +281,8 @@ def localization_target_description(lang: OutputLanguage) -> str:
     if lang == "hindi":
         return (
             "Hindi written only in Devanagari script (देवनागरी). "
-            "Every option MUST contain Devanagari letters."
+            "Every option MUST contain Devanagari letters. "
+            "Use Hindi (हिंदी) vocabulary — NOT Marathi or other languages."
         )
     if lang == "marathi":
         return (

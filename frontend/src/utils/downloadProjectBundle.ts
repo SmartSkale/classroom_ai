@@ -126,7 +126,12 @@ export async function buildProjectBundle(
     const order = deck.cards.map((_, i) => i)
     return {
       path: `${slugify(job.name)}-flashcards.pdf`,
-      data: buildFlashcardsPdfBlob(deck.topic || job.name, deck.cards, order),
+      data: await buildFlashcardsPdfBlob(
+        deck.topic || job.name,
+        deck.cards,
+        order,
+        job.outputLanguage,
+      ),
     }
   })
 

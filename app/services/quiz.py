@@ -6,9 +6,9 @@ from pydantic import ValidationError
 
 from app.schemas.language import (
     OutputLanguage,
-    has_target_script,
     language_option_pad,
     language_script_rule,
+    learner_text_wrong_language,
     localization_target_description,
     looks_english_learner_text,
 )
@@ -84,6 +84,9 @@ def _fallback_stems(
 ) -> str:
     tlab = topic.strip() or "this topic"
     focus_bit = _stem_focus(focus) if focus and focus.strip() else None
+    # Avoid embedding raw English lesson quotes inside non-English stems.
+    if focus_bit and lang != "english" and looks_english_learner_text(focus_bit):
+        focus_bit = None
     if lang == "hindi":
         if focus_bit:
             stems = (
@@ -196,6 +199,8 @@ def _prompt(*, topic: str, difficulty: str, question_count: int, output_language
         "- Return EXACTLY the requested number of questions.\n"
         "- Each question stem must ask about a *specific fact, definition, step, or contrast* from the "
         "Context (not generic prompts like 'which statement is most closely about the topic').\n"
+        "- The question stem AND all four options must be written entirely in OUTPUT_LANGUAGE — "
+        "never leave any part in English.\n"
         "- Do NOT prefix question text with [1], Q1., or other numbering — the app adds Q numbers.\n"
         "- When quoting a short phrase from the Context, use straight double quotes (\") not guillemets (« »).\n"
         "- No repeated questions.\n"
@@ -579,50 +584,34 @@ def _looks_like_boilerplate_options(options: list[str]) -> bool:
     return any(b in joined for b in _BOILERPLATE_SUBSTR)
 
 
+def _fallback_reason(
+    q: QuizQuestion,
+    context_text: str | None,
+    output_language: OutputLanguage = "english",
+) -> str | None:
+    """Return why an LLM question must be replaced, or None if it is acceptable."""
+    opts = [o.strip() for o in (q.options or []) if o and o.strip()]
+    if len(opts) < 4:
+        return "fewer_than_four_options"
+    if _looks_like_boilerplate_options(opts):
+        return "boilerplate_options"
+    if len({o.lower() for o in opts}) < 4:
+        return "duplicate_options"
+    pad_labels = {language_option_pad(output_language, j).lower() for j in range(1, 5)}
+    pad_labels.update({f"option {j}" for j in range(1, 5)})
+    pad_labels.update({f"vikalp {j}" for j in range(1, 5)})
+    if any(o.lower() in pad_labels or re.match(r"^option\s*\d+\s*$", o, re.I) for o in opts):
+        return "placeholder_option_labels"
+    return None
+
+
 def _question_needs_fallback(
     q: QuizQuestion,
     context_text: str | None,
     output_language: OutputLanguage = "english",
 ) -> bool:
-    opts = [o.strip() for o in (q.options or []) if o and o.strip()]
-    ctx = (context_text or "").strip()
-    if len(opts) < 4:
-        return True
-    if _looks_like_boilerplate_options(opts):
-        return True
-    if len({o.lower() for o in opts}) < 4:
-        return True
-    pad_labels = {language_option_pad(output_language, j).lower() for j in range(1, 5)}
-    pad_labels.update({f"option {j}" for j in range(1, 5)})
-    pad_labels.update({f"vikalp {j}" for j in range(1, 5)})
-    if any(o.lower() in pad_labels or re.match(r"^option\s*\d+\s*$", o, re.I) for o in opts):
-        return True
-    if not ctx:
-        return False
-
-    # Non-English quiz text will not share English tokens with the source
-    # material, so English-centric grounding heuristics would replace good translated
-    # questions with English fallbacks. Trust structural checks only.
-    if output_language != "english":
-        return False
-
-    hard = sum(1 for o in opts if _option_grounded(o, ctx))
-    soft = sum(1 for o in opts if _option_soft_overlap(o, ctx))
-    q_ok = _question_overlaps_context(q.question, ctx, min_shared=3)
-
-    # Requiring all four options to match the text literally rejected good paraphrases and
-    # forced the same template question repeatedly (only options changed).
-    if hard >= 2:
-        return False
-    if hard >= 1 and q_ok:
-        return False
-    if soft >= 3 and q_ok:
-        return False
-    if soft >= 2 and hard >= 1:
-        return False
-    if hard == 0 and soft <= 1:
-        return True
-    return False
+    """Only replace structurally broken LLM output — never reject for grounding overlap."""
+    return _fallback_reason(q, context_text, output_language) is not None
 
 
 def _normalize_questions(
@@ -668,7 +657,14 @@ def _normalize_questions(
                 "option_explanations": oex,
             }
         )
-        if _question_needs_fallback(built, context_text, output_language):
+        fb_reason = _fallback_reason(built, context_text, output_language)
+        if fb_reason:
+            logger.info(
+                "Replacing LLM quiz question q%s with fallback (%s): %s",
+                i + 1,
+                fb_reason,
+                built.question[:120],
+            )
             built = _fallback_question(topic, i, context_text, output_language).model_copy(
                 update={"id": f"q{i + 1}"}
             )
@@ -695,6 +691,11 @@ def _normalize_questions(
     guard = 0
     while len(qs) < question_count and guard < question_count * 8:
         guard += 1
+        logger.info(
+            "Padding quiz with fallback question (%s/%s collected from LLM path)",
+            len(qs),
+            question_count,
+        )
         built = _fallback_question(topic, pad_idx, context_text, output_language)
         pad_idx += 1
         fb_key = _question_dedupe_key(built.question)
@@ -711,48 +712,125 @@ def _normalize_questions(
     return parsed.model_copy(update={"questions": qs})
 
 
+def _strip_response_json_fences(raw: str) -> str:
+    s = raw.strip()
+    s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s*```\s*$", "", s)
+    return s.strip()
+
+
 def _extract_json_obj(raw: str) -> dict | None:
-    raw = raw.strip()
+    s = _strip_response_json_fences(raw)
     try:
-        obj = json.loads(raw)
+        obj = json.loads(s)
         return obj if isinstance(obj, dict) else None
-    except Exception:
+    except json.JSONDecodeError:
         pass
 
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        chunk = raw[start : end + 1]
-        try:
-            obj = json.loads(chunk)
-            return obj if isinstance(obj, dict) else None
-        except Exception:
-            return None
+    start = s.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    for i in range(start, len(s)):
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(s[start : i + 1])
+                    return obj if isinstance(obj, dict) else None
+                except json.JSONDecodeError:
+                    return None
     return None
 
 
-def _options_wrong_language(q: QuizQuestion, output_language: OutputLanguage) -> bool:
-    """Detect MCQ options that are still English when a non-English language was requested."""
-    opts = [o for o in (q.options or []) if o and o.strip()]
-    if len(opts) < 2:
-        return False
+def _coerce_llm_questions(raw_questions: object) -> list[QuizQuestion]:
+    """Salvage valid questions when the LLM returns a partially malformed array."""
+    if not isinstance(raw_questions, list):
+        return []
+    out: list[QuizQuestion] = []
+    for i, item in enumerate(raw_questions):
+        if not isinstance(item, dict):
+            continue
+        question = _clean_question_text(str(item.get("question", "")).strip())
+        raw_opts = item.get("options")
+        if not isinstance(raw_opts, list):
+            continue
+        options = [str(o).strip() for o in raw_opts if o is not None and str(o).strip()]
+        if len(question) < 8 or len(options) < 4:
+            continue
+        try:
+            idx = int(item.get("correct_option_index", 0))
+        except (TypeError, ValueError):
+            idx = 0
+        idx = max(0, min(3, idx))
+        oex = item.get("option_explanations")
+        option_explanations = None
+        if isinstance(oex, list):
+            option_explanations = [str(x).strip() for x in oex[:4] if x is not None]
+            if len(option_explanations) < 4:
+                option_explanations = None
+        try:
+            out.append(
+                QuizQuestion(
+                    id=str(item.get("id") or f"q{i + 1}"),
+                    question=question,
+                    options=options[:4],
+                    correct_option_index=idx,
+                    correct_explanation=str(item.get("correct_explanation") or "Correct.").strip()[:2000],
+                    wrong_explanation=str(item.get("wrong_explanation") or "Incorrect.").strip()[:2000],
+                    option_explanations=option_explanations,
+                )
+            )
+        except ValidationError:
+            continue
+    return out
+
+
+def _parse_llm_quiz_response(
+    data: dict,
+    *,
+    topic: str,
+    output_language: OutputLanguage,
+) -> QuizGenerateResponse:
+    questions = _coerce_llm_questions(data.get("questions"))
+    if not questions:
+        try:
+            return QuizGenerateResponse.model_validate(
+                {
+                    "topic": data.get("topic", topic),
+                    "output_language_used": data.get("output_language_used", output_language),
+                    "questions": data.get("questions", []),
+                }
+            )
+        except ValidationError:
+            return QuizGenerateResponse(
+                topic=topic,
+                output_language_used=output_language,
+                questions=[],
+            )
+    return QuizGenerateResponse(
+        topic=str(data.get("topic", topic))[:200],
+        output_language_used=output_language,
+        questions=questions,
+    )
+
+
+def _question_wrong_language(q: QuizQuestion, output_language: OutputLanguage) -> bool:
+    """Detect quiz items that still contain English or the wrong script."""
     if output_language == "english":
         return False
-    if output_language == "roman_hindi":
-        formal = 0
-        for o in opts:
-            words = re.findall(r"[A-Za-z]+", o)
-            if len(words) >= 6 and not re.search(
-                r"\b(hai|hain|ka|ki|ke|mein|se|aur|ya|nahi|kya|jo|wala|wali)\b", o, re.I
-            ):
-                formal += 1
-        return formal >= 2
-    # Native-script languages: English prose or missing target script is wrong.
-    bad = 0
-    for o in opts:
-        if looks_english_learner_text(o) or not has_target_script(o, output_language):
-            bad += 1
-    return bad >= 1
+    fields: list[str] = [q.question, q.correct_explanation, q.wrong_explanation]
+    fields.extend(o for o in (q.options or []) if o and o.strip())
+    if q.option_explanations:
+        fields.extend(x for x in q.option_explanations if x and str(x).strip())
+    return any(learner_text_wrong_language(f, output_language) for f in fields)
+
+
+def _options_wrong_language(q: QuizQuestion, output_language: OutputLanguage) -> bool:
+    """Backward-compatible alias; checks all learner-facing fields."""
+    return _question_wrong_language(q, output_language)
 
 
 def _quiz_needs_localization(questions: list[QuizQuestion], output_language: OutputLanguage) -> bool:
@@ -785,24 +863,28 @@ async def _localize_quiz_batch(
         )
 
     provider = get_llm_provider(vision=False, provider=llm_provider)
+    lang_rule = _lang_rule(output_language)
     messages: list[Message] = [
         {
             "role": "system",
             "content": (
                 "You are a precise translator for school MCQ quizzes. "
                 "Output strict JSON only. Preserve meaning, option order, and correct_option_index. "
-                "Never leave any learner-facing option in English."
+                "Never leave any learner-facing text in English. "
+                f"{lang_rule}"
             ),
         },
         {
             "role": "user",
             "content": (
                 f"Rewrite EVERY field below into {target}.\n"
+                f"{lang_rule}\n"
                 "Rules:\n"
-                "- Translate question, all 4 options, correct_explanation, wrong_explanation, "
+                "- Translate question stem, all 4 options, correct_explanation, wrong_explanation, "
                 "and option_explanations.\n"
+                "- The question stem must be fully in the target language — no English sentences.\n"
                 "- Keep exactly 4 options per item, same order/meaning, same correct_option_index.\n"
-                "- Do NOT copy English words into options except unavoidable formulas/symbols "
+                "- Do NOT copy English words except unavoidable formulas/symbols "
                 "(e.g. c, λ, f).\n"
                 '- Return ONLY JSON shaped as: '
                 '{"items":[{"index":0,"question":"...","options":["a","b","c","d"],'
@@ -856,7 +938,11 @@ async def _localize_quiz_batch(
         }
         if isinstance(oex, list) and len(oex) >= 4:
             patch["option_explanations"] = [_normalize_quotes(str(x)) for x in oex[:4]]
-        updated.append(q.model_copy(update=patch))
+        candidate = q.model_copy(update=patch)
+        if _question_wrong_language(candidate, output_language):
+            updated.append(q)
+        else:
+            updated.append(candidate)
     return updated
 
 
@@ -869,7 +955,7 @@ async def _force_localize_quiz(
     """
     Localization pass for non-English quizzes.
 
-    Only rewrites questions whose options are still in the wrong language.
+    Rewrites questions whose stems, options, or explanations are still in the wrong language.
     Batched when every question needs translation to avoid truncated responses.
     """
     if output_language == "english" or not questions:
@@ -878,11 +964,11 @@ async def _force_localize_quiz(
     batch_size = 3
     result = list(questions)
 
-    for attempt in range(2):
+    for attempt in range(3):
         if not _quiz_needs_localization(result, output_language):
             break
         # On first attempt localize everything that is wrong-language; on retry only leftovers.
-        targets = [i for i, q in enumerate(result) if _options_wrong_language(q, output_language)]
+        targets = [i for i, q in enumerate(result) if _question_wrong_language(q, output_language)]
         if not targets:
             break
 
@@ -920,7 +1006,7 @@ async def _force_localize_quiz(
                 except Exception as e:  # noqa: BLE001
                     logger.warning("Quiz localization retry for q%s failed: %s", i, e)
 
-    still_bad = sum(1 for q in result if _options_wrong_language(q, output_language))
+    still_bad = sum(1 for q in result if _question_wrong_language(q, output_language))
     if still_bad:
         logger.warning("Quiz localization finished with %s question(s) still wrong-language", still_bad)
     else:
@@ -984,19 +1070,18 @@ async def generate_quiz(
 
         raw = await provider.complete_chat(messages, max_tokens=max_tok, temperature=temp)
         data = _extract_json_obj(raw) or {}
-        try:
-            parsed_try = QuizGenerateResponse.model_validate(
-                {
-                    "topic": data.get("topic", topic),
-                    "output_language_used": data.get("output_language_used", output_language),
-                    "questions": data.get("questions", []),
-                }
-            )
-        except ValidationError:
-            parsed_try = QuizGenerateResponse(
-                topic=topic,
-                output_language_used=output_language,
-                questions=[],
+        if not data:
+            logger.warning("Quiz LLM attempt %s returned unparsable JSON", attempt + 1)
+        parsed_try = _parse_llm_quiz_response(
+            data,
+            topic=topic,
+            output_language=output_language,
+        )
+        if not parsed_try.questions:
+            logger.warning(
+                "Quiz LLM attempt %s produced 0 usable questions (raw length=%s)",
+                attempt + 1,
+                len(raw),
             )
 
         normalized_try = _normalize_questions(

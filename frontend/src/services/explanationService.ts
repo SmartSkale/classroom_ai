@@ -42,6 +42,8 @@ export interface GenerateExplanationParams {
   /** "openai" | "opensource" — defaults to openai. */
   stack?: string
   outputLanguage?: OutputLanguage
+  /** True when chapterText came from PDF extraction. */
+  fromPdf?: boolean
 }
 
 export interface GenerateExplanationFromFileParams {
@@ -61,6 +63,17 @@ export interface ExplanationWithSource {
   sourceText: string
 }
 
+/** Thrown when explanation generation fails but PDF text was extracted. */
+export class ExplanationGenerationError extends Error {
+  sourceText: string
+
+  constructor(message: string, sourceText: string) {
+    super(message)
+    this.name = 'ExplanationGenerationError'
+    this.sourceText = sourceText
+  }
+}
+
 function toExplanation(data: ExplainResponse): Explanation {
   return {
     markdown: data.explanation_markdown,
@@ -78,7 +91,13 @@ function toExplanation(data: ExplainResponse): Explanation {
  * Endpoint: POST /api/v1/explain/text (requires auth). `stack` is a query param.
  */
 async function generateExplanation(params: GenerateExplanationParams): Promise<Explanation> {
-  const { chapterText, topicHint, stack = 'openai', outputLanguage = 'english' } = params
+  const {
+    chapterText,
+    topicHint,
+    stack = 'openai',
+    outputLanguage = 'english',
+    fromPdf = false,
+  } = params
 
   const { data } = await api.post<ExplainResponse>(
     '/explain/text',
@@ -86,6 +105,7 @@ async function generateExplanation(params: GenerateExplanationParams): Promise<E
       chapter_text: chapterText,
       output_language: outputLanguage,
       topic_hint: topicHint?.trim() || null,
+      from_pdf: fromPdf,
     },
     { params: { stack } },
   )
@@ -118,12 +138,11 @@ function appendExplainFormFields(
  * Generate an explanation directly from uploaded files (PDF or image(s)) and
  * return both the explanation and the extracted source text.
  *
- * - PDFs use POST /api/v1/explain/pdf (server extracts text and echoes it
- *   back in `source_text_used_for_context`).
+ * - PDFs extract text via POST /api/v1/explain/pdf-extract, then explain via
+ *   POST /api/v1/explain/text. Scanned PDFs fall back to POST /api/v1/explain/pdf
+ *   (vision model) when no selectable text is found.
  * - A single image uses POST /api/v1/explain/image (vision model).
  * - Multiple images use POST /api/v1/explain/images (vision model).
- *   There is no extracted plain text for images, so the generated markdown
- *   doubles as the grounding context.
  */
 async function generateExplanationFromFile(
   params: GenerateExplanationFromFileParams,
@@ -152,14 +171,56 @@ async function generateExplanationFromFile(
     throw new Error('Unsupported file type for extraction. Use a PDF or image.')
   }
 
+  if (hasPdf) {
+    const extractForm = new FormData()
+    extractForm.append('file', files[0])
+
+    let sourceText = ''
+    try {
+      const { data: extracted } = await api.post<{ chapter_text: string; notes?: string }>(
+        '/explain/pdf-extract',
+        extractForm,
+      )
+      sourceText = extracted.chapter_text?.trim() ?? ''
+    } catch {
+      // Scanned/image-only PDF — fall back to vision explain endpoint.
+      const visionForm = new FormData()
+      appendExplainFormFields(visionForm, topicHint, stack, outputLanguage)
+      visionForm.append('file', files[0])
+      const { data } = await api.post<ExplainResponse>('/explain/pdf', visionForm)
+      const explanation = toExplanation(data)
+      const visionSource =
+        data.source_text_used_for_context?.trim() || explanation.markdown
+      return { explanation, sourceText: visionSource }
+    }
+
+    if (!sourceText) {
+      throw new Error(
+        'No text could be extracted from the uploaded file. Upload a PDF with selectable text, paste the content as plain text, or try image uploads instead.',
+      )
+    }
+
+    try {
+      const explanation = await generateExplanation({
+        chapterText: sourceText,
+        topicHint,
+        stack,
+        outputLanguage,
+        fromPdf: true,
+      })
+      return { explanation, sourceText }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Explanation generation failed.'
+      throw new ExplanationGenerationError(message, sourceText)
+    }
+  }
+
   const form = new FormData()
   appendExplainFormFields(form, topicHint, stack, outputLanguage)
 
   let endpoint: string
-  if (hasPdf) {
-    form.append('file', files[0])
-    endpoint = '/explain/pdf'
-  } else if (files.length === 1) {
+  if (files.length === 1) {
     form.append('file', files[0])
     endpoint = '/explain/image'
   } else {

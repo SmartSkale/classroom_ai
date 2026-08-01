@@ -123,10 +123,16 @@ export function Flashcards() {
     setShuffledOn(false)
   }
 
-  function handleDownloadPdf() {
+  async function handleDownloadPdf() {
     if (total === 0) return
     try {
-      downloadFlashcardsPdf(projectName, cards, order, `${slugify(projectName)}-flashcards.pdf`)
+      await downloadFlashcardsPdf(
+        projectName,
+        cards,
+        order,
+        `${slugify(projectName)}-flashcards.pdf`,
+        job?.outputLanguage,
+      )
       showToast({ type: 'success', message: 'Flashcard PDF downloaded.' })
     } catch {
       showToast({ type: 'error', message: 'Could not generate flashcard PDF. Try again.' })
