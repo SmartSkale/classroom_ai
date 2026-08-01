@@ -8,12 +8,21 @@ const EMAIL_DOMAIN_RE =
 const PASSWORD_UPPER_RE = /[A-Z]/
 const PASSWORD_DIGIT_RE = /\d/
 const DOMAIN_VOWEL_RE = /[aeiou]/i
+const DOMAIN_LETTER_RE = /[a-zA-Z]/
 
 /** Reject long random-looking domain labels (e.g. dfghjk in dfghjk.com). */
 function isPlausibleDomainLabel(label: string): boolean {
   if (label.length < 2) return false
+  // Numeric-only labels like "123" are not real mail domains.
+  if (!DOMAIN_LETTER_RE.test(label)) return false
   if (label.length <= 4) return true
   return DOMAIN_VOWEL_RE.test(label)
+}
+
+/** Reject long consonant-only local parts (e.g. fghjg in fghjg@123.com). */
+function isPlausibleEmailLocal(local: string): boolean {
+  if (local.length <= 4) return true
+  return DOMAIN_VOWEL_RE.test(local)
 }
 
 function isPlausibleEmailDomain(domain: string): boolean {
@@ -41,6 +50,7 @@ export function isValidEmail(value: string): boolean {
   if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false
   if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false
   if (!EMAIL_LOCAL_RE.test(local)) return false
+  if (!isPlausibleEmailLocal(local)) return false
   if (!EMAIL_DOMAIN_RE.test(domain)) return false
   if (!isPlausibleEmailDomain(domain)) return false
 
