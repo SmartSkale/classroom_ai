@@ -3,6 +3,16 @@ import type { OutputTypeId } from './constants'
 
 export type ProjectRunStatus = 'in_progress' | 'complete' | 'partial' | 'failed'
 
+export const CANCELLED_STEP_ERROR = 'Cancelled by user.'
+
+export type ProjectStatusVariant = 'active' | 'warning' | 'error' | 'muted'
+
+export interface ProjectStatusDisplay {
+  label: string
+  variant: ProjectStatusVariant
+  title?: string
+}
+
 function formatApiDetail(detail: unknown): string | null {
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
@@ -60,6 +70,72 @@ export function getProjectRunStatus(job: GenerationJob | undefined): ProjectRunS
   return 'partial'
 }
 
+function isCancelledJob(job: GenerationJob): boolean {
+  const failed = getFailedSteps(job)
+  if (failed.length === 0) return false
+  return failed.every((step) => formatStepError(step.error) === CANCELLED_STEP_ERROR)
+}
+
+function failedOutputLabels(job: GenerationJob): string[] {
+  return getFailedSteps(job)
+    .filter((step) => step.key !== 'extract')
+    .map((step) => step.label.replace(/^Generating /, ''))
+}
+
+/** User-facing status chip for library and dashboard project cards. */
+export function getProjectStatusDisplay(job: GenerationJob | undefined): ProjectStatusDisplay | null {
+  if (!job) return null
+
+  const runStatus = getProjectRunStatus(job)
+  if (!runStatus || runStatus === 'complete') return null
+
+  if (runStatus === 'in_progress') {
+    return {
+      label: 'In progress',
+      variant: 'active',
+      title: 'This project is still being generated.',
+    }
+  }
+
+  if (isCancelledJob(job)) {
+    const succeeded = job.steps.filter((step) => step.status === 'done').length
+    return {
+      label: 'Generation cancelled',
+      variant: 'muted',
+      title:
+        succeeded > 0
+          ? 'Generation was cancelled. Finished outputs are still available.'
+          : 'Generation was cancelled before any outputs completed.',
+    }
+  }
+
+  if (runStatus === 'failed') {
+    const firstError = getFailedSteps(job)[0]
+    return {
+      label: 'Generation unsuccessful',
+      variant: 'error',
+      title: firstError
+        ? formatStepError(firstError.error)
+        : 'We could not generate any outputs for this project.',
+    }
+  }
+
+  const unavailable = failedOutputLabels(job)
+  const readyCount = job.outputs.filter((output) => {
+    const step = job.steps.find((s) => s.key === output)
+    return step?.status === 'done'
+  }).length
+
+  return {
+    label: readyCount > 0 ? 'Partially complete' : 'Needs attention',
+    variant: 'warning',
+    title:
+      unavailable.length > 0
+        ? `Unavailable: ${unavailable.join(', ')}. Other outputs may still be usable.`
+        : 'Some steps did not complete successfully.',
+  }
+}
+
 /** Jobs that are still generating, newest first. */
 export function getInProgressJobs(jobs: Record<string, GenerationJob>): GenerationJob[] {
   return Object.values(jobs)
@@ -79,6 +155,40 @@ export function getOutputStep(
 ): GenerationStep | undefined {
   if (!job) return undefined
   return job.steps.find((s) => s.key === stepKey)
+}
+
+/** True when an output step completed successfully and has persisted result data. */
+export function hasOutputResult(job: GenerationJob, output: OutputTypeId): boolean {
+  const { results } = job
+  switch (output) {
+    case 'explanation':
+      return Boolean(results.explanation?.markdown.trim())
+    case 'quiz':
+      return Boolean(results.quiz?.length)
+    case 'slides':
+      return Boolean(results.slides?.deckId)
+    case 'flashcards':
+      return Boolean(results.flashcards?.cards?.length)
+    case 'audio':
+      return Boolean(results.audio?.audioId)
+    case 'infographic':
+      return Boolean(results.infographic?.dataUrl)
+    case 'illustration':
+      return Boolean(results.illustration?.dataUrl)
+    case 'video':
+      return Boolean(results.video?.videoId)
+    default:
+      return false
+  }
+}
+
+export function isOutputReady(
+  job: GenerationJob | undefined,
+  output: OutputTypeId,
+): boolean {
+  if (!job) return false
+  const step = getOutputStep(job, output)
+  return step?.status === 'done' && hasOutputResult(job, output)
 }
 
 /**

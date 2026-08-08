@@ -9,6 +9,7 @@ import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
 import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { generationService } from '../../services/generationService'
+import { isOutputReady } from '../../utils/projectStatus'
 import {
   AUDIO_LANGUAGES,
   AUDIO_SPEEDS,
@@ -46,7 +47,7 @@ export function Audio() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const cachedAudio = job?.results.audio ?? null
+  const cachedAudio = isOutputReady(job, 'audio') ? (job?.results.audio ?? null) : null
 
   const [voice, setVoice] = useState<AudioVoiceId>(
     (cachedAudio?.voice as AudioVoiceId) ?? AUDIO_VOICES[0].id,

@@ -3,7 +3,7 @@ import type { GenerationJob } from '../context/generation-context'
 import type { QuizQuestion } from '../services/quizService'
 import { generationService } from '../services/generationService'
 import { OUTPUT_TYPES, type OutputTypeId } from './constants'
-import { formatStepError } from './projectStatus'
+import { formatStepError, isOutputReady } from './projectStatus'
 import { buildFlashcardsPdfBlob } from './flashcardPdf'
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -260,32 +260,5 @@ export async function downloadProjectBundle(
 }
 
 export function countReadyOutputs(job: GenerationJob): number {
-  return job.outputs.filter((output) => {
-    const step = job.steps.find((s) => s.key === output)
-    return step?.status === 'done' && hasResult(job, output)
-  }).length
-}
-
-function hasResult(job: GenerationJob, output: OutputTypeId): boolean {
-  const { results } = job
-  switch (output) {
-    case 'explanation':
-      return Boolean(results.explanation?.markdown.trim())
-    case 'quiz':
-      return Boolean(results.quiz?.length)
-    case 'slides':
-      return Boolean(results.slides?.deckId)
-    case 'flashcards':
-      return Boolean(results.flashcards?.cards?.length)
-    case 'audio':
-      return Boolean(results.audio?.audioId)
-    case 'infographic':
-      return Boolean(results.infographic?.dataUrl)
-    case 'illustration':
-      return Boolean(results.illustration?.dataUrl)
-    case 'video':
-      return Boolean(results.video?.videoId)
-    default:
-      return false
-  }
+  return job.outputs.filter((output) => isOutputReady(job, output)).length
 }

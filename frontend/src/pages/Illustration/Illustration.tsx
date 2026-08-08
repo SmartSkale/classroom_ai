@@ -9,6 +9,7 @@ import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
 import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { ROUTES } from '../../utils/constants'
+import { isOutputReady } from '../../utils/projectStatus'
 import './Illustration.css'
 
 interface Toast {
@@ -39,7 +40,7 @@ export function Illustration() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const cached = job?.results.illustration ?? null
+  const cached = isOutputReady(job, 'illustration') ? (job?.results.illustration ?? null) : null
 
   const [image, setImage] = useState<string | null>(cached?.dataUrl ?? null)
   const { isGenerating, generatingLabel } = useProjectOutputState(

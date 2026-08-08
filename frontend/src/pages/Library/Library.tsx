@@ -5,11 +5,12 @@ import { DownloadAllButton } from '../../components/DownloadAllButton'
 import { countReadyOutputs } from '../../utils/downloadProjectBundle'
 import { AssignToGroupModal } from '../../components/AssignToGroupModal'
 import { Loader } from '../../components/Loader'
+import { ProjectStatusBadge } from '../../components/ProjectStatusBadge'
 import { useAuth } from '../../hooks/useAuth'
 import { useGeneration } from '../../context/generation-context'
 import { useFetch } from '../../hooks/useFetch'
 import { projectService, type Project } from '../../services/projectService'
-import { getProjectRunStatus, isOutputStepActive } from '../../utils/projectStatus'
+import { getProjectRunStatus, isOutputReady, isOutputStepActive } from '../../utils/projectStatus'
 import {
   ACTIVE_GENERATION_JOB_KEY,
   OUTPUT_TYPES,
@@ -189,16 +190,7 @@ export function Library() {
                     <span className="library-meta">
                       <span className={`library-badge ${meta.className}`}>{meta.label}</span>
                       <span>{formatRelativeTime(project.updatedAt)}</span>
-                      {(() => {
-                        const runStatus = getProjectRunStatus(jobs[project.id])
-                        if (runStatus === 'in_progress') {
-                          return <span className="library-status">In progress</span>
-                        }
-                        if (runStatus === 'failed' || runStatus === 'partial') {
-                          return <span className="library-status library-status-failed">Has failures</span>
-                        }
-                        return null
-                      })()}
+                      <ProjectStatusBadge job={job} />
                     </span>
                   </span>
                 </button>
@@ -206,18 +198,27 @@ export function Library() {
                 <div className="library-outputs">
                   {project.outputs.map((output) => {
                     const outputGenerating = isOutputStepActive(job, output)
+                    const outputReady = isOutputReady(job, output)
+                    const outputUnavailable = Boolean(job?.done && !outputReady && !outputGenerating)
                     return (
                     <button
                       key={output}
                       type="button"
-                      className={`library-output-chip${outputGenerating ? ' library-output-chip-generating' : ''}`}
+                      className={`library-output-chip${
+                        outputGenerating ? ' library-output-chip-generating' : ''
+                      }${outputUnavailable ? ' library-output-chip-unavailable' : ''}`}
+                      disabled={outputUnavailable}
                       onClick={() =>
                         navigate(outputRoute(project.id, output), {
                           state: { name: project.name },
                         })
                       }
                     >
-                      {outputGenerating ? `${outputLabel(output)}…` : outputLabel(output)}
+                      {outputGenerating
+                        ? `${outputLabel(output)}…`
+                        : outputUnavailable
+                          ? `${outputLabel(output)} unavailable`
+                          : outputLabel(output)}
                     </button>
                     )
                   })}

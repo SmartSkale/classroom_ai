@@ -87,6 +87,8 @@ export interface GenerationContextValue {
   cacheResults: (id: string, results: Partial<GenerationResults>) => void
   /** Import a shared project snapshot (e.g. from a teacher link). */
   importSharedJob: (job: GenerationJob) => void
+  /** Stop an in-flight generation and mark remaining steps as cancelled. */
+  cancelGeneration: (id: string) => boolean
   /** Delete a project from the database and in-memory cache. */
   deleteProject: (id: string) => Promise<void>
   /** Fetch a single project into the in-memory cache when it is not already loaded. */

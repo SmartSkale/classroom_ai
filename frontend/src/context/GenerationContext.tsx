@@ -10,7 +10,7 @@ import { generationService } from '../services/generationService'
 import { projectService } from '../services/projectService'
 import { useAuth } from '../hooks/useAuth'
 import { canCreateContent } from '../utils/roles'
-import { formatStepError } from '../utils/projectStatus'
+import { CANCELLED_STEP_ERROR, formatStepError } from '../utils/projectStatus'
 import {
   GenerationContext,
   type GenerationJob,
@@ -381,6 +381,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           )
         }
 
+        let resultPatch: Partial<GenerationJob['results']> | null = null
+
         switch (output) {
           case 'explanation': {
             const explanation =
@@ -390,7 +392,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
                 topicHint: name,
                 outputLanguage,
               }))
-            setResult(id, { explanation })
+            resultPatch = { explanation }
             break
           }
           case 'quiz': {
@@ -408,7 +410,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               },
               { force: true },
             )
-            setResult(id, { quiz })
+            resultPatch = { quiz }
             break
           }
           case 'slides': {
@@ -416,14 +418,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               slideCount: outputOptions?.slideCount,
               outputLanguage,
             })
-            setResult(id, { slides })
+            resultPatch = { slides }
             break
           }
           case 'flashcards': {
             const flashcards = await generationService.generateFlashcards(name, source, {
               outputLanguage,
             })
-            setResult(id, { flashcards })
+            resultPatch = { flashcards }
             break
           }
           case 'audio': {
@@ -434,7 +436,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               voice: outputOptions?.audioVoice,
               outputLanguage: outputOptions?.audioLanguage ?? outputLanguage,
             })
-            setResult(id, { audio })
+            resultPatch = { audio }
             break
           }
           case 'infographic': {
@@ -443,14 +445,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               colorPrompt: outputOptions?.colorPrompt,
               outputLanguage,
             })
-            setResult(id, { infographic })
+            resultPatch = { infographic }
             break
           }
           case 'illustration': {
             const illustration = await generationService.generateIllustration(name, source, {
               outputLanguage,
             })
-            setResult(id, { illustration })
+            resultPatch = { illustration }
             break
           }
           case 'video': {
@@ -458,13 +460,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               throw new Error('Need at least 120 characters of source text to generate a video.')
             }
             const video = await generationService.generateVideo(name, source, { outputLanguage })
-            setResult(id, { video })
+            resultPatch = { video }
             break
           }
           default:
             throw new Error(`Unsupported output type: ${output}`)
         }
+
         if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
+        if (resultPatch) setResult(id, resultPatch)
         setStep(id, output, { status: 'done' })
       } catch (err) {
         if (runGeneration !== undefined && !isCurrentRun(id, runGeneration)) return
@@ -526,6 +530,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             fileExplanation = explanation
             if (extracted.trim()) sourceText = extracted.trim()
           } catch (err) {
+            if (!active()) return
             const msg = errorMessage(err)
             if (err instanceof ExplanationGenerationError && err.sourceText.trim()) {
               sourceText = err.sourceText.trim()
@@ -539,6 +544,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+
+        if (!active()) return
 
         if (canExtractFiles && !pastedText && !sourceText.trim()) {
           extractionBlocked = true
@@ -568,6 +575,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           })
           return
         }
+
+        if (!active()) return
 
         updateJob(id, (job) => ({ ...job, sourceText }))
         updateJob(id, (job) => {
@@ -632,8 +641,35 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [bumpRunGeneration, commitJob, run],
   )
 
+  const cancelGeneration = useCallback(
+    (id: string): boolean => {
+      const job = jobsRef.current[id]
+      if (!job || job.done) return false
+
+      bumpRunGeneration(id)
+
+      updateJob(id, (current) => {
+        let results = current.results
+        const steps = current.steps.map((step) => {
+          if (step.status === 'pending' || step.status === 'in_progress') {
+            if (current.outputs.includes(step.key as OutputTypeId)) {
+              results = clearOutputResult(results, step.key as OutputTypeId)
+            }
+            return { ...step, status: 'failed' as StepStatus, error: CANCELLED_STEP_ERROR }
+          }
+          return step
+        })
+        const { progress, done } = recompute(steps)
+        return { ...current, results, steps, progress, done, error: CANCELLED_STEP_ERROR }
+      })
+      return true
+    },
+    [bumpRunGeneration, updateJob],
+  )
+
   const deleteProject = useCallback(
     async (id: string) => {
+      bumpRunGeneration(id)
       pendingPersist.current.delete(id)
       await projectService.deleteProject(id)
       jobsRef.current = { ...jobsRef.current }
@@ -643,7 +679,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         return rest
       })
     },
-    [],
+    [bumpRunGeneration],
   )
 
   const loadProject = useCallback(async (id: string): Promise<GenerationJob | undefined> => {
@@ -802,6 +838,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         getJob,
         cacheResults,
         importSharedJob,
+        cancelGeneration,
         deleteProject,
         loadProject,
       }}

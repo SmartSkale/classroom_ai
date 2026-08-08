@@ -11,7 +11,7 @@ import { generationService } from '../../services/generationService'
 import { useAuth } from '../../hooks/useAuth'
 import { isStudent } from '../../utils/roles'
 import { ROUTES, projectRoute } from '../../utils/constants'
-import { getStepFailure } from '../../utils/projectStatus'
+import { getStepFailure, isOutputReady } from '../../utils/projectStatus'
 import './Video.css'
 
 const POLL_MS = 3000
@@ -38,7 +38,7 @@ export function Video() {
   const navState = location.state as { name?: string } | null
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
-  const cachedVideo = job?.results.video ?? null
+  const cachedVideo = isOutputReady(job, 'video') ? (job?.results.video ?? null) : null
 
   const [status, setStatus] = useState(cachedVideo?.status ?? 'queued')
   const [progress, setProgress] = useState<number | null>(null)

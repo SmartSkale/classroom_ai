@@ -11,7 +11,7 @@ import { downloadFlashcardsPdf } from '../../utils/flashcardPdf'
 import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../utils/constants'
 import { isStudent } from '../../utils/roles'
-import { getStepFailure } from '../../utils/projectStatus'
+import { getStepFailure, isOutputReady } from '../../utils/projectStatus'
 import './Flashcards.css'
 
 interface Toast {
@@ -47,7 +47,7 @@ export function Flashcards() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const deck = job?.results.flashcards ?? null
+  const deck = isOutputReady(job, 'flashcards') ? (job?.results.flashcards ?? null) : null
   const cards = useMemo(() => deck?.cards ?? [], [deck])
 
   const [order, setOrder] = useState<number[]>(() => sequential(cards.length))

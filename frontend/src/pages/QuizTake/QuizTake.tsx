@@ -7,6 +7,7 @@ import { useGeneration } from '../../context/generation-context'
 import { quizService, sanitizeQuizQuestions } from '../../services/quizService'
 import { quizResultsRoute, ROUTES } from '../../utils/constants'
 import { updateQuizProgress } from '../../utils/studentAssignments'
+import { isOutputReady } from '../../utils/projectStatus'
 import './QuizTake.css'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
@@ -22,7 +23,10 @@ export function QuizTake() {
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
 
   const questions = useMemo(
-    () => sanitizeQuizQuestions(job?.results.quiz ?? []),
+    () =>
+      isOutputReady(job, 'quiz')
+        ? sanitizeQuizQuestions(job?.results.quiz ?? [])
+        : [],
     [job],
   )
   const [answers, setAnswers] = useState<Record<string, number>>({})

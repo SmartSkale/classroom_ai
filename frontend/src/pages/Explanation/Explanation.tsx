@@ -15,7 +15,7 @@ import {
   ROUTES,
   quizTakeRoute,
 } from '../../utils/constants'
-import { getStepFailure, hasProjectFailures } from '../../utils/projectStatus'
+import { getStepFailure, hasProjectFailures, isOutputReady } from '../../utils/projectStatus'
 import { isStudent } from '../../utils/roles'
 import './Explanation.css'
 
@@ -40,7 +40,9 @@ export function Explanation() {
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
 
   // Content was already generated during upload; show it from the job cache.
-  const cachedExplanation = job?.results.explanation ?? null
+  const cachedExplanation = isOutputReady(job, 'explanation')
+    ? (job?.results.explanation ?? null)
+    : null
   const sourceText = job?.sourceText ?? navState?.text ?? ''
 
   const [chapterText, setChapterText] = useState(sourceText)
@@ -57,7 +59,9 @@ export function Explanation() {
   const [inputOpen, setInputOpen] = useState(!cachedExplanation && !explanationFailed)
 
   const explanation =
-    isGenerating ? null : (content ?? job?.results.explanation ?? null)
+    isGenerating || !isOutputReady(job, 'explanation')
+      ? null
+      : (content ?? job?.results.explanation ?? null)
 
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
@@ -104,7 +108,7 @@ export function Explanation() {
   // The explanation is generated up front (during upload), so we only display
   // the cached result here — no generation happens on navigating into this page.
   useEffect(() => {
-    if (job?.results.explanation) {
+    if (isOutputReady(job, 'explanation') && job?.results.explanation) {
       setContent(job.results.explanation)
       setInputOpen(false)
     } else if (getStepFailure(job, 'explanation')) {

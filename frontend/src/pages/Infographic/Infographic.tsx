@@ -15,6 +15,7 @@ import {
   type InfographicColorId,
   type InfographicLayoutId,
 } from '../../utils/constants'
+import { isOutputReady } from '../../utils/projectStatus'
 import './Infographic.css'
 
 interface Toast {
@@ -45,7 +46,7 @@ export function Infographic() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const cached = job?.results.infographic ?? null
+  const cached = isOutputReady(job, 'infographic') ? (job?.results.infographic ?? null) : null
 
   const [layout, setLayout] = useState<InfographicLayoutId>(INFOGRAPHIC_LAYOUTS[0].id)
   const [color, setColor] = useState<InfographicColorId>(INFOGRAPHIC_COLORS[0].id)

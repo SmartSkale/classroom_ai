@@ -10,7 +10,7 @@ import { useProjectOutputState } from '../../hooks/useProjectOutputState'
 import { sanitizeQuizQuestions, type QuizQuestion } from '../../services/quizService'
 import { useGeneration } from '../../context/generation-context'
 import { isStudent } from '../../utils/roles'
-import { getStepFailure } from '../../utils/projectStatus'
+import { getStepFailure, isOutputReady } from '../../utils/projectStatus'
 import {
   DIFFICULTIES,
   QUIZ_COUNT_OPTIONS,
@@ -41,7 +41,7 @@ export function Quiz() {
   const sourceText = job?.sourceText ?? navState?.text
 
   // The quiz was generated up front (during upload); show it from the cache.
-  const cachedQuiz = job?.results.quiz ?? null
+  const cachedQuiz = isOutputReady(job, 'quiz') ? (job?.results.quiz ?? null) : null
 
   const [count, setCount] = useState(10)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
@@ -81,10 +81,10 @@ export function Quiz() {
 
   // Sync when the project pipeline finishes regenerating this output.
   useEffect(() => {
-    if (job?.results.quiz) {
+    if (isOutputReady(job, 'quiz') && job?.results.quiz) {
       setQuestions(sanitizeQuizQuestions(job.results.quiz))
     }
-  }, [job?.results.quiz])
+  }, [job, job?.results.quiz])
 
   // No generation on navigating into this page — the quiz is produced up front
   // during upload. We only clean up the toast timer here.

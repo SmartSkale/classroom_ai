@@ -68,7 +68,7 @@ export function ProcessingIndex() {
 export function Processing() {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
-  const { jobs, loadProject, hydrated } = useGeneration()
+  const { jobs, loadProject, hydrated, cancelGeneration } = useGeneration()
 
   const job = jobId ? jobs[jobId] : undefined
   const [loading, setLoading] = useState(Boolean(jobId && !job))
@@ -129,6 +129,10 @@ export function Processing() {
   }
 
   function confirmCancel() {
+    if (!jobId) return
+    cancelGeneration(jobId)
+    sessionStorage.removeItem(ACTIVE_GENERATION_JOB_KEY)
+    setConfirmOpen(false)
     navigate(ROUTES.dashboard, { replace: true })
   }
 
@@ -230,18 +234,17 @@ export function Processing() {
         title="Cancel generation?"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Keep going
             </Button>
-            <Button variant="danger" onClick={confirmCancel}>
+            <Button variant="outline" onClick={confirmCancel}>
               Cancel generation
             </Button>
           </>
         }
       >
         <p style={{ margin: 0, color: 'var(--muted)' }}>
-          Generation will continue in the background until you leave. Partial results are still
-          saved to your Library.
+          Remaining steps will stop and any outputs already finished stay saved in your Library.
         </p>
       </Modal>
     </div>

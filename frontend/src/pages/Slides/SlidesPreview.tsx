@@ -5,6 +5,7 @@ import { Loader } from '../../components/Loader'
 import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectOutputState } from '../../hooks/useProjectOutputState'
+import { isOutputReady } from '../../utils/projectStatus'
 import { generationService } from '../../services/generationService'
 import { ROUTES, slidesRoute, type SlideThemeId } from '../../utils/constants'
 import type { SlideInclude, SlidePreviewNavState } from './Slides'
@@ -31,7 +32,7 @@ export function SlidesPreview() {
   )
   const navState = (location.state ?? null) as SlidePreviewNavState | null
 
-  const deck = job?.results.slides ?? null
+  const deck = isOutputReady(job, 'slides') ? (job?.results.slides ?? null) : null
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const theme: SlideThemeId = navState?.theme ?? 'professional_dark'
   const include = navState?.include ?? DEFAULT_INCLUDE

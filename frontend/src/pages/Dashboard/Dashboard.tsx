@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Loader } from '../../components/Loader'
+import { ProjectStatusBadge } from '../../components/ProjectStatusBadge'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { useGeneration } from '../../context/generation-context'
@@ -82,7 +83,6 @@ export function Dashboard() {
           <div className="project-grid">
             {projects.map((project) => {
               const meta = TYPE_META[project.type]
-              const runStatus = getProjectRunStatus(jobs[project.id])
               return (
                 <button
                   key={project.id}
@@ -106,12 +106,7 @@ export function Dashboard() {
                       <span className="project-date">
                         {formatRelativeTime(project.updatedAt)}
                       </span>
-                      {runStatus === 'in_progress' && (
-                        <span className="project-status">In progress</span>
-                      )}
-                      {(runStatus === 'failed' || runStatus === 'partial') && (
-                        <span className="project-status project-status-failed">Has failures</span>
-                      )}
+                      <ProjectStatusBadge job={jobs[project.id]} />
                     </div>
                     <span className="project-outputs-count">
                       {project.outputs.length} output{project.outputs.length === 1 ? '' : 's'}

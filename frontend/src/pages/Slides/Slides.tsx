@@ -7,6 +7,7 @@ import { ProjectOutputNav } from '../../components/ProjectOutputNav'
 import { useGeneration } from '../../context/generation-context'
 import { useProjectJob } from '../../hooks/useProjectJob'
 import { useProjectOutputState } from '../../hooks/useProjectOutputState'
+import { isOutputReady } from '../../utils/projectStatus'
 import {
   ROUTES,
   SLIDE_COUNT_OPTIONS,
@@ -39,7 +40,7 @@ export function Slides() {
 
   const projectName = job?.name ?? navState?.name ?? 'Your Project'
   const sourceText = job?.sourceText ?? navState?.text ?? ''
-  const cachedDeck = job?.results.slides ?? null
+  const cachedDeck = isOutputReady(job, 'slides') ? (job?.results.slides ?? null) : null
 
   const defaultCount = cachedDeck
     ? (SLIDE_COUNT_OPTIONS.find((n) => n >= cachedDeck.slides.length) ?? 10)

@@ -1,5 +1,5 @@
 import type { GenerationJob } from '../../context/generation-context'
-import { formatStepError, getFailedSteps, getStepFailure } from '../../utils/projectStatus'
+import { CANCELLED_STEP_ERROR, formatStepError, getFailedSteps, getStepFailure } from '../../utils/projectStatus'
 import './ProjectFailures.css'
 
 interface ProjectFailuresProps {
@@ -22,10 +22,19 @@ export function ProjectFailures({
     if (!message) return null
     const step = job.steps.find((s) => s.key === stepKey)
     const label = (step?.label ?? 'Output').replace(/^Generating /, '')
+    const cancelled = message === CANCELLED_STEP_ERROR
     return (
       <div className="project-failures project-failures-single" role="alert">
         <p>
-          <strong>{label} failed:</strong> {message}
+          {cancelled ? (
+            <>
+              <strong>{label}</strong> was not generated — generation was cancelled.
+            </>
+          ) : (
+            <>
+              <strong>{label} failed:</strong> {message}
+            </>
+          )}
         </p>
       </div>
     )
@@ -38,14 +47,20 @@ export function ProjectFailures({
     <section className="project-failures" aria-label="Generation issues">
       <h2 className="project-failures-title">{title}</h2>
       <ul className="project-failures-list">
-        {failed.map((step) => (
+        {failed.map((step) => {
+          const reason =
+            step.error !== undefined && formatStepError(step.error) === CANCELLED_STEP_ERROR
+              ? 'Generation cancelled'
+              : step.error !== undefined
+                ? formatStepError(step.error)
+                : null
+          return (
           <li key={step.key}>
             <span className="project-failures-label">{step.label}</span>
-            {step.error !== undefined && (
-              <span className="project-failures-reason">{formatStepError(step.error)}</span>
-            )}
+            {reason && <span className="project-failures-reason">{reason}</span>}
           </li>
-        ))}
+          )
+        })}
       </ul>
     </section>
   )
