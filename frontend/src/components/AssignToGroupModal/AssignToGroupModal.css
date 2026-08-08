@@ -1,0 +1,66 @@
+.assign-modal-intro {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.assign-modal-error {
+  margin: 0 0 1rem;
+  color: var(--danger, #c0392b);
+}
+
+.assign-modal-success {
+  margin: 0 0 1rem;
+  color: var(--success, #1e7e34);
+}
+
+.assign-modal-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.assign-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.assign-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.assign-modal-item-assigned {
+  background: color-mix(in srgb, var(--success, #1e7e34) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--success, #1e7e34) 35%, var(--border));
+}
+
+.assign-modal-assigned-badge {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--success, #1e7e34);
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success, #1e7e34) 12%, transparent);
+}
+
+.assign-modal-name {
+  display: block;
+  font-weight: 600;
+}
+
+.assign-modal-meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

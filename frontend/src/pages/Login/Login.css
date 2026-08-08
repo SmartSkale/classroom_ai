@@ -1,0 +1,422 @@
+.login-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 1.25rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, var(--surface));
+}
+
+.login-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  white-space: nowrap;
+}
+
+.login-mode-btn-active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.login-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.login-sub {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.login-field > span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 0.85rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.login-input-wrap input {
+  width: 100%;
+  font: inherit;
+  padding: 0.75rem 0.85rem 0.75rem 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.login-input-wrap-password input {
+  padding-right: 2.6rem;
+}
+
+.login-input {
+  width: 100%;
+  font: inherit;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.login-input-wrap input:focus,
+.login-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.login-password-toggle:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.login-forgot-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.35rem;
+}
+
+.login-forgot {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.login-forgot:hover {
+  color: var(--accent-hover);
+}
+
+/* ---------- Role cards ---------- */
+.login-roles {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.login-roles legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0;
+  margin-bottom: 0.6rem;
+}
+
+.login-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+
+.role-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.85rem 0.75rem;
+  border: 1.5px solid color-mix(in srgb, var(--border) 90%, var(--accent) 10%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg) 85%, var(--surface) 15%);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: var(--btn-transition);
+  box-shadow: var(--btn-shadow-sm);
+}
+
+.role-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow:
+    var(--btn-shadow-sm),
+    0 6px 18px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.role-card-selected {
+  border-color: var(--accent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent) 14%, var(--surface)),
+    color-mix(in srgb, var(--accent) 6%, var(--bg))
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    var(--btn-shadow-primary);
+}
+
+.role-card-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.role-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  font-size: 1.15rem;
+}
+
+.role-card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.role-card-desc {
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+@media (max-width: 380px) {
+  .login-roles-grid {
+    grid-template-columns: 1fr;
+  }
+  .role-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.65rem;
+  }
+}
+
+.login-input-wrap input.login-input-invalid,
+.login-input.login-input-invalid {
+  border-color: var(--danger);
+}
+
+.login-input-wrap input.login-input-invalid:focus,
+.login-input.login-input-invalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.login-field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
+.login-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.login-success {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.login-success p {
+  margin: 0;
+}
+
+.login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.login-back:hover {
+  color: var(--accent-hover);
+}
+
+.login-back-arrow {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.login-back-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.login-reset-sent-page .login-title {
+  margin-bottom: 1rem;
+}
+
+.login-reset-sent {
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.login-reset-sent strong {
+  font-weight: 700;
+}
+
+.login-reset-sent-hint {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.login-back-footer-sent {
+  margin-top: 0;
+}
+
+.login-reset-btn.btn {
+  margin-top: 0.25rem;
+  border-radius: 999px;
+  padding: 0.85rem 1.35rem;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  min-height: 3rem;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.login-reset-btn.btn-primary:disabled {
+  opacity: 1;
+  color: rgb(255 255 255 / 0.72);
+  background: color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-color: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-reset-btn.btn-primary:disabled::before {
+  opacity: 0;
+}
+
+.login-reset-btn-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.login-back-plain {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.login-back-plain:hover {
+  color: var(--accent);
+}
+
+.login-back-divider {
+  margin: 0.85rem 0 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.login-switch {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.login-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.15rem 0.25rem;
+  border-radius: 6px;
+  transition: var(--btn-transition);
+}
+
+.login-link:hover {
+  color: var(--accent-hover);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}

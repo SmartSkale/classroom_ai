@@ -1,0 +1,22 @@
+.download-all {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.download-all-block {
+  width: 100%;
+}
+
+.download-all-progress {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+.download-all-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}

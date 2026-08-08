@@ -1,0 +1,136 @@
+.dash-profile-menu {
+  position: relative;
+}
+
+.dash-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dash-topbar-user:hover,
+.dash-topbar-user-open {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+}
+
+.dash-topbar-user-open {
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.dash-topbar-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dash-topbar-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.dash-topbar-user-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.dash-topbar-user-role {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.dash-topbar-chevron {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.dash-topbar-chevron-open {
+  transform: rotate(180deg);
+}
+
+.dash-profile-dropdown {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 20;
+  min-width: 190px;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow:
+    0 10px 30px color-mix(in srgb, var(--text) 10%, transparent),
+    0 2px 8px color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.dash-profile-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted) 12%);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dash-profile-dropdown-item:hover {
+  background: color-mix(in srgb, var(--surface-2) 88%, var(--accent) 12%);
+  color: var(--text);
+}
+
+.dash-profile-dropdown-item-danger {
+  color: #ef4444;
+}
+
+.dash-profile-dropdown-item-danger:hover {
+  background: color-mix(in srgb, #ef4444 10%, var(--surface));
+  color: #dc2626;
+}
+
+.dash-profile-dropdown-divider {
+  height: 1px;
+  margin: 0.3rem 0.15rem;
+  background: var(--border);
+}
+
+.dash-profile-menu-icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}

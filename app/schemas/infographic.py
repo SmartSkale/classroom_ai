@@ -1,15 +1,18 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
+
+from app.schemas.language import OutputLanguage
 
 
 class InfographicRequest(BaseModel):
     topic: str = Field(..., min_length=2, max_length=200)
     context_text: str | None = Field(default=None, max_length=30000)
-    output_language: Literal["english", "hindi", "roman_hindi"] = "english"
+    output_language: OutputLanguage = "english"
     stack: str = Field(default="openai", description="openai | opensource")
     style: str = Field(
-        default="flat vector educational infographic, bold icons, clean arrows, high contrast, no readable text in image",
+        default=(
+            "flat vector educational infographic, bold icons, clean arrows, high contrast, "
+            "short readable labels, no watermark"
+        ),
         description="Appended to the image model prompt.",
     )
 

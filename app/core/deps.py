@@ -31,7 +31,25 @@ def get_current_user(db: DbSession, token: TokenDep) -> User:
     return user
 
 
+def get_current_user_allow_expired(db: DbSession, token: TokenDep) -> User:
+    """Like get_current_user but accepts recently expired tokens (session reset)."""
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    email = decode_access_token(token, allow_expired=True)
+    if not email:
+        raise credentials_exc
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        raise credentials_exc
+    return user
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserAllowExpired = Annotated[User, Depends(get_current_user_allow_expired)]
 
 
 def require_roles(*roles: UserRole) -> Callable[..., User]:

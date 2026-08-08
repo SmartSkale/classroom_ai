@@ -372,7 +372,6 @@ label.field textarea {
   border: 1px solid var(--border);
 }
 
-
 .quiz-options {
   margin-top: 0.6rem;
   display: grid;
@@ -591,7 +590,7 @@ audio.lesson-audio {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--btn-shadow-md);
 }
 
 .flashcard-front p,

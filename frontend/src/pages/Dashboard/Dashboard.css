@@ -1,0 +1,228 @@
+.dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.75rem 4rem;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.dashboard-greeting {
+  margin: 0 0 0.3rem;
+  font-size: 1.7rem;
+}
+
+.dashboard-subtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dashboard-section {
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-section-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- Recent projects ---------- */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: var(--btn-transition);
+  box-shadow: var(--btn-shadow-sm);
+}
+
+.project-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  transform: translateY(-4px);
+  box-shadow:
+    var(--btn-shadow-sm),
+    0 12px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.project-card:active {
+  transform: translateY(-1px);
+}
+
+.project-thumb {
+  display: grid;
+  place-items: center;
+  height: 92px;
+  font-size: 2rem;
+  background: var(--surface-2);
+}
+
+.project-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 0.9rem 1rem;
+}
+
+.project-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.project-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.project-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.project-date {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.project-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.project-status-failed {
+  color: var(--danger);
+}
+
+/* Type accents */
+.type-pdf {
+  color: #f87171;
+}
+.type-quiz {
+  color: #fbbf24;
+}
+.type-pptx {
+  color: #fb923c;
+}
+.type-audio {
+  color: #34d399;
+}
+.type-video {
+  color: #60a5fa;
+}
+.type-flashcards {
+  color: #a78bfa;
+}
+
+.project-badge.type-pdf,
+.project-badge.type-quiz,
+.project-badge.type-pptx,
+.project-badge.type-audio,
+.project-badge.type-video,
+.project-badge.type-flashcards {
+  border-color: color-mix(in srgb, currentColor 45%, var(--border));
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* ---------- States ---------- */
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.dashboard-error p {
+  margin: 0;
+  color: var(--danger);
+}
+
+.dashboard-empty {
+  color: var(--muted);
+  padding: 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.dashboard-empty p {
+  margin: 0 0 1rem;
+}
+
+.project-outputs-count {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* ---------- Quick start ---------- */
+.dashboard-actions {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- Usage meter ---------- */
+.usage {
+  max-width: 480px;
+}
+
+.usage-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.usage-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  transition: width 0.3s ease;
+}
+
+.usage-label {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.usage-label strong {
+  color: var(--text);
+}

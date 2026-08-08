@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -24,15 +26,34 @@ def create_access_token(subject: str, *, expires_delta: timedelta | None = None)
     expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
-    payload = {"sub": subject, "exp": expire}
+    payload = {"sub": subject, "exp": int(expire.timestamp())}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> str | None:
+def decode_access_token(token: str, *, allow_expired: bool = False) -> str | None:
     settings = get_settings()
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": not allow_expired},
+        )
     except JWTError:
         return None
     subject = payload.get("sub")
     return str(subject) if subject else None
+
+
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token: str) -> str:
+    settings = get_settings()
+    return hashlib.sha256(f"{settings.secret_key}:{token}".encode("utf-8")).hexdigest()
+
+
+def reset_token_expiry() -> datetime:
+    settings = get_settings()
+    return datetime.now(UTC) + timedelta(minutes=settings.password_reset_expire_minutes)

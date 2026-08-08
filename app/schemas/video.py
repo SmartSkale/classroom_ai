@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.language import OutputLanguage
+
 
 class VideoJobCreateRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=32000)
@@ -48,7 +50,7 @@ class VideoJobCreateRequest(BaseModel):
         default="explainer",
         description="explainer ≈ more segments; brief = shorter overview.",
     )
-    output_language: Literal["english", "hindi", "roman_hindi"] = Field(
+    output_language: OutputLanguage = Field(
         default="english",
         description="Spoken + on-screen language for lesson_overview.",
     )

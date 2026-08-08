@@ -5,9 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # `.env` overrides `.env.example`. Only `.env` should hold real secrets (gitignored).
+    # Load only `.env` at runtime. Copy from `.env.example` when setting up the project.
     model_config = SettingsConfigDict(
-        env_file=(".env.example", ".env"),
+        env_file=".env",
         extra="ignore",
     )
 
@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     # Default image model name for provider (OpenAI image model). Can be overridden in .env
     image_generation_model: str = "gpt-image-2"
     # OpenAI image quality: gpt-image-2 supports low, medium, high.
-    # Default to low for faster turn-around in the Learn flow.
-    image_generation_quality: str = "low"
+    # medium balances classroom-ready detail with reasonable latency.
+    image_generation_quality: str = "medium"
     sd_webui_seed: int = -1  # -1 for random, or specific seed for deterministic output
     llm_prompt_generation_retries: int = 3
 
@@ -48,12 +48,25 @@ class Settings(BaseSettings):
     # JWT auth — set SECRET_KEY in .env for production
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    access_token_expire_minutes: int = 15
+    password_reset_expire_minutes: int = 30
+
+    # Reject signup/login emails whose domain has no DNS records (blocks fake domains).
+    email_check_deliverability: bool = True
 
     # Optional bootstrap admin (created on startup if no admin exists)
     bootstrap_admin_email: str | None = None
     bootstrap_admin_password: str | None = None
     bootstrap_admin_name: str = "Admin"
+
+    # SMTP email notifications (optional — leave SMTP_HOST empty to disable)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    email_from: str = "Classroom AI <noreply@example.com>"
+    frontend_url: str = "http://localhost:5173"
 
 
 @lru_cache

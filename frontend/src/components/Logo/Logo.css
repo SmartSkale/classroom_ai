@@ -1,0 +1,75 @@
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.logo-wrap-sm .logo-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.logo-wrap-sm .logo-text {
+  font-size: 0.95rem;
+}
+
+.logo-wrap-md .logo-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-wrap-md .logo-text {
+  font-size: 1.05rem;
+}
+
+.logo-wrap-lg .logo-icon,
+.logo-icon-lg {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.logo-wrap-lg .logo-text,
+.logo-text-lg {
+  font-size: 1.15rem;
+}
+
+.logo-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.logo-full {
+  display: block;
+  width: auto;
+  height: 32px;
+  flex: none;
+}
+
+.logo-full-lg {
+  height: 40px;
+}
+
+.logo-text {
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.logo-text-sm {
+  font-size: 0.95rem;
+}
+
+.logo-text-lg {
+  font-size: 1.15rem;
+}
+
+.logo-text-accent {
+  color: var(--accent-deep);
+}

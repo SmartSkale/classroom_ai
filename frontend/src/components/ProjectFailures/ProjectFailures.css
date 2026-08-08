@@ -1,0 +1,45 @@
+.project-failures {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--text);
+}
+
+.project-failures-single p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--danger);
+}
+
+.project-failures-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  color: var(--danger);
+}
+
+.project-failures-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.project-failures-list li {
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.project-failures-label {
+  display: block;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.project-failures-reason {
+  display: block;
+  color: var(--muted);
+}

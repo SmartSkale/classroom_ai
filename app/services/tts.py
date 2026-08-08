@@ -7,7 +7,15 @@ import httpx
 from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
-from app.schemas.language import OutputLanguage
+from app.schemas.language import (
+    OutputLanguage,
+    LANGUAGE_META,
+    has_target_script,
+    language_display_name,
+    language_edge_voice,
+    localization_target_description,
+    script_char_count,
+)
 
 _lock = asyncio.Lock()
 _audio_store: dict[str, tuple[bytes, str, str]] = {}
@@ -80,6 +88,18 @@ async def _openai_plain_chat(settings: Settings, user_content: str, *, max_token
     return (ch or "").strip()
 
 
+def _script_ratio(text: str, lang: OutputLanguage) -> float:
+    """Fraction of letters that belong to the target language script."""
+    ranges = LANGUAGE_META[lang].script_ranges
+    if not ranges:
+        return 0.0
+    letters = [c for c in text if c.isalpha() or has_target_script(c, lang)]
+    if not letters:
+        return 0.0
+    script = script_char_count("".join(letters), lang)
+    return script / len(letters)
+
+
 async def _translate_for_speech_plain(
     text: str,
     output_language: OutputLanguage,
@@ -92,25 +112,31 @@ async def _translate_for_speech_plain(
     excerpt = text[:_MAX_TRANSLATE_IN].strip()
     settings = get_settings()
 
-    if output_language == "hindi":
-        if _devanagari_ratio(excerpt) >= 0.45:
+    # Native-script Indic languages (hindi, marathi, bengali, telugu, tamil).
+    if LANGUAGE_META[output_language].script_ranges:
+        if _script_ratio(excerpt, output_language) >= 0.45:
             return excerpt, False
 
-        def _hindi_prompt(strict: bool) -> str:
+        name = language_display_name(output_language)
+        target = localization_target_description(output_language)
+
+        def _indic_prompt(strict: bool) -> str:
             extra = ""
             if strict:
                 extra = (
-                    "\nIMPORTANT: Your previous answer may have been wrong. "
-                    "This time output ONLY Devanagari script (Hindi). "
+                    f"\nIMPORTANT: Your previous answer may have been wrong. "
+                    f"This time output ONLY {name} in the correct script. "
                     "Do not write English sentences.\n"
                 )
             return (
                 f"{extra}"
-                "You are a Hindi school teacher. Translate the lesson passage below into Hindi for audio narration.\n"
+                f"You are a {name} school teacher. Translate the lesson passage below into "
+                f"{name} for audio narration.\n"
                 "Rules:\n"
-                "- Use Devanagari script ONLY for all Hindi words.\n"
-                "- Keep technical terms: use Hindi textbook style or transliterate to Devanagari.\n"
-                "- Output ONLY the translated passage. No title, no 'Here is', no JSON, no quotes around the whole text.\n\n"
+                f"- Target: {target}\n"
+                f"- Keep technical terms in {name} textbook style when possible.\n"
+                "- Output ONLY the translated passage. No title, no 'Here is', no JSON, "
+                "no quotes around the whole text.\n\n"
                 "LESSON TEXT:\n"
                 f"{excerpt}"
             )
@@ -118,22 +144,22 @@ async def _translate_for_speech_plain(
         raw = ""
         for strict in (False, True):
             if llm_provider == "openai":
-                raw = await _openai_plain_chat(settings, _hindi_prompt(strict), max_tokens=6000)
+                raw = await _openai_plain_chat(settings, _indic_prompt(strict), max_tokens=6000)
             else:
-                raw = await _ollama_plain_chat(settings, _hindi_prompt(strict), num_predict=8000)
+                raw = await _ollama_plain_chat(settings, _indic_prompt(strict), num_predict=8000)
             raw = _clean_plain_llm_output(raw)
             if len(raw) < 30:
                 continue
-            dr = _devanagari_ratio(raw)
-            if dr >= 0.06:
+            sr = _script_ratio(raw, output_language)
+            if sr >= 0.06:
                 return raw, True
-            if strict and dr >= 0.02:
+            if strict and sr >= 0.02:
                 return raw, True
         if len(raw) >= 30:
             return raw, True
         return text, False
 
-    # roman_hindi
+    # roman_hindi (Latin only)
     if _latin_letter_ratio(excerpt) >= 0.85 and _devanagari_ratio(excerpt) < 0.03:
         return excerpt, False
 
@@ -156,11 +182,7 @@ async def _translate_for_speech_plain(
 def _edge_voice_for_language(lang: OutputLanguage, override: str | None) -> str:
     if override and override.strip():
         return override.strip()
-    if lang == "english":
-        return "en-US-AriaNeural"
-    if lang == "hindi":
-        return "hi-IN-SwaraNeural"
-    return "en-IN-PrabhatNeural"
+    return language_edge_voice(lang)
 
 
 async def _openai_speech(

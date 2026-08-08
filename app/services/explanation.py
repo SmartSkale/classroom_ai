@@ -9,10 +9,17 @@ from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
 from app.schemas.explain import ExplainResponse, VisualAssetBrief
-from app.schemas.language import OutputLanguage
+from app.schemas.language import OutputLanguage, language_display_name, language_script_rule
 from app.services import illustration_openai, illustration_opensource
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import ImageUrlPart, Message, TextPart
+from app.services.explanation_grounding import (
+    grounding_source_text,
+    learner_facing_char_count,
+    minimum_explanation_chars,
+    minimum_markdown_chars,
+    validate_explanation_grounding,
+)
 from app.services.pdf_extract import extract_pdf_to_text
 
 
@@ -20,14 +27,7 @@ def _user_language_block(output_language: OutputLanguage, *, closing: bool = Fal
     """Strong, repeated instructions; JSON schema examples were biasing models toward English."""
     if output_language == "english":
         line = "OUTPUT_LANGUAGE=english. All learner-facing strings must be in English."
-    elif output_language == "hindi":
-        line = (
-            "OUTPUT_LANGUAGE=hindi (Devanagari). All learner-facing strings — explanation_markdown, "
-            "simple_examples, visual_brief title/description, suggested_followup_topics, "
-            "video_lesson_prompt — MUST be in Hindi using देवनागरी script. "
-            "Do not use Roman/Latin letters for Hindi words. Translate from the chapter if it is in English."
-        )
-    else:
+    elif output_language == "roman_hindi":
         line = (
             "OUTPUT_LANGUAGE=roman_hindi (Hindi in Latin letters only). "
             "All learner-facing strings — explanation_markdown, simple_examples, "
@@ -39,9 +39,38 @@ def _user_language_block(output_language: OutputLanguage, *, closing: bool = Fal
             "Mermaid labels: Roman Hindi or very short English. "
             "Translate the teaching from the chapter even if the chapter is English."
         )
+    else:
+        name = language_display_name(output_language)
+        line = (
+            f"OUTPUT_LANGUAGE={output_language}. "
+            f"All learner-facing strings — explanation_markdown, simple_examples, "
+            f"visual_brief title/description, suggested_followup_topics, video_lesson_prompt — "
+            f"MUST be in {name}. "
+            f"{language_script_rule(output_language)} "
+            "JSON keys stay English; enum tokens kind/suggested_format stay as specified. "
+            "Translate from the chapter if it is in another language."
+        )
     tag = "FINAL CHECK — " if closing else ""
     return f"{tag}{line}\n\n"
 
+
+_GROUNDING_RULES = """
+SOURCE FIDELITY (critical):
+- Base every fact, definition, example, and diagram ONLY on the chapter content provided in the user message.
+- Do NOT invent topics, formulas, names, dates, or examples that are not supported by the source.
+- If the source is unclear or too short, say so briefly in explanation_markdown instead of guessing.
+- topic_hint (if any) is only the lesson TITLE — still teach ALL major ideas in the full chapter, not just the title phrase.
+- simple_examples must reuse concrete details (numbers, objects, terms) that appear in the source when possible.
+"""
+
+_PDF_COVERAGE_RULES = """
+UPLOADED PDF (critical):
+- The chapter content came from a multi-page PDF. Markers like "=== Page N ===" and "[Table …]" show structure.
+- Cover EVERY major section, definition, process, formula, and important table from ALL pages — not just page 1.
+- Add a ### section per major heading/topic found in the source when the document is long.
+- Include numerical examples, worked steps, and vocabulary from across the document.
+- Do NOT produce a one-paragraph summary when the source has multiple pages or sections.
+"""
 
 _JSON_CONTRACT = """
 Return a single JSON object only (no markdown code fences).
@@ -54,41 +83,83 @@ diagram_caption (string or null).
 
 Rules:
 - explanation_markdown: Must be clear, textbook-style Markdown in OUTPUT_LANGUAGE only. Use this structure (headings in OUTPUT_LANGUAGE):
-  * One ## title line for the lesson topic.
-  * ### sections in order (skip any that do not apply): Main ideas; Step-by-step (or reasoning); Real-life / numerical examples; Key terms; Quick recap.
-  * Use **bold** for important terms, short bullet lists where helpful, short paragraphs (3–6 sentences).
-  * Do NOT wrap the whole explanation in a single code block. No English mixed in when OUTPUT_LANGUAGE is hindi or roman_hindi.
-- simple_examples: At least 3 items. Each string is ONE concrete example: include numbers/units when the topic allows, or a specific everyday situation (e.g. "If distance is 2 m and …"). Avoid vague one-liners like "study hard".
+  * One ## title line for the lesson topic (use topic_hint as the title when provided).
+  * ### sections in order (add more ### sections when the source has multiple topics): Main ideas; Step-by-step (or reasoning); Real-life / numerical examples; Key terms; Quick recap.
+  * For long chapters: write a thorough lesson — multiple ### sections, bullet lists, and full paragraphs. Aim to teach the whole chapter, not a short overview.
+  * Use **bold** for important terms, bullet lists where helpful, and complete paragraphs (3–6 sentences each).
+  * Do NOT wrap the whole explanation in a single code block. No English mixed in when OUTPUT_LANGUAGE is not english.
+- simple_examples: At least 3 items (use 4–6 when the source is long). Each string is ONE concrete example grounded in the source: include numbers/units when the topic allows, or a specific everyday situation drawn from the chapter (e.g. "If distance is 2 m and …"). Avoid vague one-liners like "study hard".
 - kind must be one of: diagram, analogy_illustration, timeline, graph_concept, animation_idea, other.
 - suggested_format must be one of: mermaid, animation_storyboard, svg_or_image.
-- Put at least 2 items in visual_briefs; use full sentences in title and description.
+- Put at least 2 items in visual_briefs; use full sentences in title and description tied to the source chapter.
 - mermaid_diagram: valid Mermaid v10+ syntax only, or null. Prefer flowchart TD or graph LR. First line MUST be the diagram keyword (no title line before it). Use ASCII-only node IDs (A, B, C, …). Put ALL label text in double quotes: A["Light source"] --> B["Mirror"]. Use --> for links. Avoid raw parentheses inside unquoted brackets. Do NOT put a second copy of the diagram inside explanation_markdown fenced blocks — only here in mermaid_diagram. Newlines in JSON must be escaped as \\n.
 - diagram_caption: If mermaid_diagram is non-null, add 1–3 sentences in OUTPUT_LANGUAGE explaining what the diagram shows (a legend: parts, arrows, or how to read it). If no diagram, use null.
 
 LANGUAGE: Every string that students will read MUST follow OUTPUT_LANGUAGE from the messages above — not English unless OUTPUT_LANGUAGE is english.
 """
 
+_PAGE_MARKER_RE = re.compile(r"^=== Page (\d+) ===", re.MULTILINE)
 
-def _system_prompt(output_language: OutputLanguage, topic_hint: str | None) -> str:
+
+def _count_pdf_pages(text: str) -> int:
+    return len(_PAGE_MARKER_RE.findall(text))
+
+
+def _looks_like_pdf_extraction(text: str) -> bool:
+    return bool(_PAGE_MARKER_RE.search(text))
+
+
+def _length_guidance(source_len: int, *, from_pdf: bool) -> str:
+    target = minimum_explanation_chars(source_len)
+    pages_note = (
+        " Teach all pages/sections from the uploaded PDF."
+        if from_pdf
+        else ""
+    )
+    return (
+        f"LENGTH: The source is about {source_len} characters.{pages_note} "
+        f"Write a complete lesson — explanation_markdown alone should be at least "
+        f"~{target} characters (longer is better when the source is long)."
+    )
+
+
+def _system_prompt(
+    output_language: OutputLanguage,
+    topic_hint: str | None,
+    *,
+    from_pdf: bool = False,
+    source_len: int = 0,
+) -> str:
     """Build the system prompt that steers the explanation model."""
-    focus = f" Focus the explanation on: {topic_hint}." if topic_hint else ""
+    if topic_hint:
+        focus = (
+            f" Use topic_hint \"{topic_hint}\" as the lesson ## title, but still explain "
+            "ALL major ideas from the full chapter content — do not limit the lesson to "
+            "only the title phrase."
+        )
+    else:
+        focus = ""
     if output_language == "english":
         lang = "Learner-facing text: English only."
-    elif output_language == "hindi":
-        lang = "Learner-facing text: Hindi in Devanagari only (देवनागरी)."
-    else:
+    elif output_language == "roman_hindi":
         lang = "Learner-facing text: Roman Hindi only (Hindi in Latin alphabet, no Devanagari)."
+    else:
+        lang = (
+            f"Learner-facing text: {language_display_name(output_language)} only "
+            f"(follow the OUTPUT_LANGUAGE script rules)."
+        )
+    pdf_block = _PDF_COVERAGE_RULES if from_pdf else ""
+    length_block = _length_guidance(source_len, from_pdf=from_pdf) if source_len > 0 else ""
     return (
         "You are an expert school teacher. Simplify the chapter for students using clear structure, "
         "realistic examples, and language that matches OUTPUT_LANGUAGE exactly.\n"
         f"{lang}{focus}\n"
-        "Include at least two visual_briefs: one animation_storyboard and one mermaid when possible.\n"
-        "For mermaid_diagram, use classDef to color and style nodes: "
-        "classDef main fill:#ffe082,stroke:#333,stroke-width:2px; "
-        "classDef asexual fill:#b2dfdb,stroke:#333,stroke-width:2px; "
-        "classDef sexual fill:#f8bbd0,stroke:#333,stroke-width:2px; "
-        "Assign class main to main concepts, asexual to asexual reproduction nodes, sexual to sexual reproduction nodes. "
-        "Use subgraphs to group related nodes if possible. Add icons or emojis for extra clarity if appropriate.\n"
+        + _GROUNDING_RULES
+        + pdf_block
+        + (f"\n{length_block}\n" if length_block else "")
+        + "\nInclude at least two visual_briefs: one animation_storyboard and one mermaid when possible.\n"
+        "For mermaid_diagram, use classDef to color and style nodes for clarity. "
+        "Use subgraphs to group related nodes when helpful.\n"
         + _JSON_CONTRACT
     )
 
@@ -321,10 +392,11 @@ def _brief_image_prompt(brief: dict, topic_hint: str | None, output_language: Ou
     desc = str(brief.get("description", "See chapter.")).strip() or "See chapter."
     topic = f"Lesson topic hint: {topic_hint}. " if topic_hint else ""
     lang_note = ""
-    if output_language == "hindi":
-        lang_note = "The lesson is in Hindi, but the image should use no readable text. "
-    elif output_language == "roman_hindi":
-        lang_note = "The lesson is in Roman Hindi, but the image should use no readable text. "
+    if output_language != "english":
+        lang_note = (
+            f"The lesson is in {language_display_name(output_language)}, "
+            "but the image should use no readable text. "
+        )
     return (
         f"Create one vibrant educational illustration for a school lesson. {topic}{lang_note}"
         f"Subtopic title: {title}. Subtopic description: {desc}. "
@@ -428,41 +500,19 @@ def _coerce_explain_dict(data: dict) -> dict:
                 break
         if pieces:
             d["explanation_markdown"] = "\n\n".join(pieces)
-    ex = _normalize_simple_examples(d.get("simple_examples"))
-    if len(ex) < 1:
-        ex = [
-            "State the main idea from the chapter in one sentence.",
-            "Give a concrete example that uses one quantity or object from the reading.",
-            "Connect one vocabulary term to the rest of the lesson.",
-        ]
-    d["simple_examples"] = ex
-    vb = _normalize_visual_briefs(d.get("visual_briefs"))
-    if len(vb) < 3:
-        for default in _visual_brief_defaults():
-            if len(vb) >= 3:
-                break
-            if not any(item.get("kind") == default["kind"] and item.get("suggested_format") == default["suggested_format"] for item in vb):
-                vb.append(default)
-    image_brief_count = sum(1 for item in vb if str(item.get("suggested_format", "")).lower() != "mermaid")
-    if image_brief_count < 2:
-        for default in _visual_brief_defaults()[1:]:
-            if sum(1 for item in vb if str(item.get("suggested_format", "")).lower() != "mermaid") >= 2:
-                break
-            if not any(item.get("kind") == default["kind"] and item.get("suggested_format") == default["suggested_format"] for item in vb):
-                vb.append(default)
-    d["visual_briefs"] = vb
+    d["simple_examples"] = _normalize_simple_examples(d.get("simple_examples"))
+    d["visual_briefs"] = _normalize_visual_briefs(d.get("visual_briefs"))
 
-    # --- Guarantee at least one diagram per subtopic (visual_brief) ---
-    # If a visual_brief is a diagram/mermaid and has no mermaid_diagram, fill it with the main diagram or a placeholder.
     main_mermaid = d.get("mermaid_diagram")
     for b in d["visual_briefs"]:
         if (
             b.get("kind") == "diagram"
             and b.get("suggested_format") == "mermaid"
             and not b.get("mermaid_diagram")
+            and isinstance(main_mermaid, str)
+            and main_mermaid.strip()
         ):
-            # Use the main diagram if present, else a placeholder
-            b["mermaid_diagram"] = main_mermaid or "flowchart TD\nA[\"Diagram not available\"]"
+            b["mermaid_diagram"] = main_mermaid.strip()
     topics = d.get("suggested_followup_topics")
     if not isinstance(topics, list):
         d["suggested_followup_topics"] = []
@@ -477,43 +527,23 @@ def _coerce_explain_dict(data: dict) -> dict:
     return d
 
 
-def _fallback_explain_response(raw: str) -> ExplainResponse:
-    """Return a minimal valid response when the model output is not JSON."""
-    return ExplainResponse(
-        explanation_markdown=raw,
-        simple_examples=[],
-        visual_briefs=[
-            VisualAssetBrief(
-                title="Chapter summary",
-                description="The model returned non-JSON text; use the markdown above or try again.",
-                kind="other",
-                suggested_format="svg_or_image",
-            )
-        ],
-        suggested_followup_topics=[],
-        video_lesson_prompt=None,
-        mermaid_diagram=None,
-        diagram_caption=None,
-        output_language_used=None,
-        pdf_extraction_notes=None,
-        source_text_used_for_context=None,
-    )
-
-
 def _parse_explain_json(raw: str) -> ExplainResponse:
-    """Parse the LLM response into the explanation schema with fallback handling."""
+    """Parse the LLM response into the explanation schema."""
     data = _extract_json_object(raw)
     if not data:
-        return _fallback_explain_response(raw)
+        raise ValueError(
+            "The explanation model returned an invalid response. Please try again."
+        )
     data = _coerce_explain_dict(data)
     md = data.get("mermaid_diagram")
     if isinstance(md, str):
         data["mermaid_diagram"] = _sanitize_mermaid_diagram(md)
     try:
-        parsed = ExplainResponse.model_validate(data)
-    except ValidationError:
-        return _fallback_explain_response(raw)
-    return parsed
+        return ExplainResponse.model_validate(data)
+    except ValidationError as exc:
+        raise ValueError(
+            "The explanation model returned an incomplete lesson. Please try again."
+        ) from exc
 
 
 def _explain_max_tokens(chapter_len: int) -> int:
@@ -538,31 +568,97 @@ async def explain_from_pdf_bytes(
     output_language: OutputLanguage,
     topic_hint: str | None,
     llm_provider: str | None,
-    ocr_pages: bool,
-    ocr_images: bool,
 ) -> ExplainResponse:
     """Extract PDF text and generate the explanation payload from it."""
-    # pdfplumber + OCR is CPU/IO heavy; run it off the event loop.
-    ext = await anyio.to_thread.run_sync(
-        functools.partial(
-            extract_pdf_to_text, pdf_bytes, ocr_pages=ocr_pages, ocr_images=ocr_images
+    try:
+        ext = await anyio.to_thread.run_sync(
+            functools.partial(extract_pdf_to_text, pdf_bytes)
         )
-    )
+    except ValueError as exc:
+        if "No text could be extracted" not in str(exc):
+            raise
+        return await _explain_pdf_via_vision(
+            pdf_bytes,
+            output_language=output_language,
+            topic_hint=topic_hint,
+            llm_provider=llm_provider,
+        )
+
     prefix = (
         "[Source: PDF extraction — content from **all extracted pages** is included below (each page starts with "
-        "=== Page N ===). Tables appear in [Table …] blocks; text from figures or scans in [Text from image…] or "
-        "[Page N — OCR from page image] blocks. Base your lesson on the **entire** excerpt, not only the opening lines.]\n\n"
+        "=== Page N ===). Tables appear in [Table …] blocks. "
+        "Base your lesson on the **entire** excerpt, not only the opening lines.]\n\n"
     )
     out = await explain_from_text(
         prefix + ext.chapter_text,
         output_language=output_language,
         topic_hint=topic_hint,
         llm_provider=llm_provider,
+        grounding_source=ext.chapter_text,
+        from_pdf=True,
     )
     return out.model_copy(
         update={
             "pdf_extraction_notes": ext.notes,
             "source_text_used_for_context": ext.chapter_text,
+        }
+    )
+
+
+def pdf_pages_to_image_bytes(
+    pdf_bytes: bytes,
+    *,
+    max_pages: int = 20,
+    scale: float = 2.0,
+) -> list[tuple[str, bytes]]:
+    """Render PDF pages to PNG bytes for vision-based explanation."""
+    import fitz
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        if len(doc) == 0:
+            return []
+        effective = min(len(doc), max_pages)
+        mat = fitz.Matrix(scale, scale)
+        pairs: list[tuple[str, bytes]] = []
+        for i in range(effective):
+            pix = doc[i].get_pixmap(matrix=mat, alpha=False)
+            pairs.append((f"page_{i + 1}.png", pix.tobytes("png")))
+        return pairs
+    finally:
+        doc.close()
+
+
+async def _explain_pdf_via_vision(
+    pdf_bytes: bytes,
+    *,
+    output_language: OutputLanguage,
+    topic_hint: str | None,
+    llm_provider: str | None,
+) -> ExplainResponse:
+    """Fallback for scanned/image-only PDFs: render pages and use the vision model."""
+    pairs = await anyio.to_thread.run_sync(
+        functools.partial(pdf_pages_to_image_bytes, pdf_bytes)
+    )
+    if not pairs:
+        raise ValueError(
+            "No text could be extracted from this PDF. "
+            "Use a PDF with selectable text, or paste the content as plain text."
+        )
+    out = await explain_from_image_bytes(
+        pairs,
+        output_language=output_language,
+        topic_hint=topic_hint,
+        llm_provider=llm_provider,
+    )
+    notes = (
+        f"PDF: {len(pairs)} page(s) read with the vision model "
+        "(no selectable text was found in the file)."
+    )
+    return out.model_copy(
+        update={
+            "pdf_extraction_notes": notes,
+            "source_text_used_for_context": out.explanation_markdown,
         }
     )
 
@@ -573,30 +669,94 @@ async def explain_from_text(
     output_language: OutputLanguage,
     topic_hint: str | None,
     llm_provider: str | None = None,
+    grounding_source: str | None = None,
+    from_pdf: bool = False,
 ) -> ExplainResponse:
     """Generate the explanation payload directly from plain chapter text."""
-    body = (
-        _user_language_block(output_language)
-        + "Chapter content (source material; may be any language — translate and explain fully in OUTPUT_LANGUAGE):\n\n"
-        + chapter_text.strip()
-        + "\n\n"
-        + _user_language_block(output_language, closing=True)
-    )
-    messages: list[Message] = [
-        {"role": "system", "content": _system_prompt(output_language, topic_hint)},
-        {"role": "user", "content": body},
-    ]
+    plain = chapter_text.strip()
+    is_pdf = from_pdf or _looks_like_pdf_extraction(plain)
+    grounding = grounding_source_text(plain, override=grounding_source)
+    source_len = len(grounding)
+
+    if is_pdf and not plain.startswith("[Source: PDF"):
+        llm_input = (
+            "[Source: PDF extraction — content from **all extracted pages** is included below "
+            "(each page starts with === Page N ===). Tables appear in [Table …] blocks. "
+            "Base your lesson on the **entire** excerpt, not only the opening lines.]\n\n"
+            + plain
+        )
+    else:
+        llm_input = plain
+
     provider = get_llm_provider(vision=False, provider=llm_provider)
-    body_len = len(chapter_text.strip())
-    raw = await provider.complete_chat(
-        messages,
-        max_tokens=_explain_max_tokens(body_len),
-        temperature=0.35,
-    )
-    return _finalize(_parse_explain_json(raw), output_language)
+    max_tokens = _explain_max_tokens(source_len)
+    retryable = ("too short", "incomplete", "does not appear to be based")
+    min_total = minimum_explanation_chars(source_len)
+    min_markdown = minimum_markdown_chars(source_len)
+    best: ExplainResponse | None = None
+    best_len = 0
+
+    for attempt in range(3):
+        retry_note = ""
+        if attempt > 0:
+            retry_note = (
+                "\n\nRETRY — Your previous answer was too brief or incomplete. "
+                f"Write a longer, fuller lesson covering every major section. "
+                f"Total learner-facing text should be at least ~{min_total} characters "
+                f"(explanation_markdown at least ~{min_markdown}).\n"
+            )
+
+        body = (
+            _user_language_block(output_language)
+            + _GROUNDING_RULES
+            + (_PDF_COVERAGE_RULES if is_pdf else "")
+            + "\nChapter content (source material; may be any language — translate and explain fully in OUTPUT_LANGUAGE):\n\n"
+            + llm_input
+            + retry_note
+            + "\n\n"
+            + _user_language_block(output_language, closing=True)
+        )
+        messages: list[Message] = [
+            {
+                "role": "system",
+                "content": _system_prompt(
+                    output_language,
+                    topic_hint,
+                    from_pdf=is_pdf,
+                    source_len=source_len,
+                ),
+            },
+            {"role": "user", "content": body},
+        ]
+        raw = await provider.complete_chat(
+            messages,
+            max_tokens=max_tokens,
+            temperature=0.35,
+        )
+        parsed = _parse_explain_json(raw)
+        content_len = learner_facing_char_count(parsed)
+        if content_len > best_len:
+            best = parsed
+            best_len = content_len
+        try:
+            validate_explanation_grounding(
+                source_text=grounding,
+                parsed=parsed,
+                require_grounding=True,
+                output_language=output_language,
+            )
+        except ValueError as exc:
+            if attempt < 2 and any(token in str(exc).casefold() for token in retryable):
+                continue
+            if best and best_len >= int(min_total * 0.7):
+                return _finalize(best, output_language)
+            raise
+        return _finalize(parsed, output_language)
+
+    raise ValueError("The explanation model could not produce a complete lesson. Please try again.")
 
 
-def _guess_mime(header: bytes) -> str:
+def guess_image_mime(header: bytes) -> str:
     """Guess an image MIME type from its leading bytes."""
     if header.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
@@ -619,9 +779,14 @@ async def explain_from_image_bytes(
     """Read one or more images and generate the lesson explanation from them."""
     intro = (
         _user_language_block(output_language)
-        + "These images are textbook chapter pages. Read them, then explain simply for students. "
+        + _GROUNDING_RULES
+        + "These images are textbook chapter pages. Read them, then explain simply for students using ONLY what appears in the images. "
         + "All learner-facing strings in your JSON must follow OUTPUT_LANGUAGE. "
-        + (f"Emphasize: {topic_hint}. " if topic_hint else "")
+        + (
+            f"When topic_hint is provided, emphasize {topic_hint} within the image content only. "
+            if topic_hint
+            else ""
+        )
         + _JSON_CONTRACT
     )
     closing = _user_language_block(output_language, closing=True)
@@ -631,7 +796,7 @@ async def explain_from_image_bytes(
     for _filename, data in files:
         if not data:
             continue
-        mime = _guess_mime(data[:12])
+        mime = guess_image_mime(data[:12])
         if mime == "application/octet-stream":
             mime = "image/png"
         b64 = base64.standard_b64encode(data).decode("ascii")
@@ -645,10 +810,25 @@ async def explain_from_image_bytes(
     content.append({"type": "text", "text": closing})
 
     messages: list[Message] = [
-        {"role": "system", "content": _system_prompt(output_language, topic_hint)},
+        {
+            "role": "system",
+            "content": _system_prompt(
+                output_language,
+                topic_hint,
+                from_pdf=True,
+                source_len=0,
+            ),
+        },
         {"role": "user", "content": content},
     ]
 
     provider = get_llm_provider(vision=True, provider=llm_provider)
-    raw = await provider.complete_chat(messages, max_tokens=4096, temperature=0.35)
-    return _finalize(_parse_explain_json(raw), output_language)
+    raw = await provider.complete_chat(messages, max_tokens=8192, temperature=0.35)
+    parsed = _parse_explain_json(raw)
+    validate_explanation_grounding(
+        source_text="",
+        parsed=parsed,
+        require_grounding=False,
+        output_language=output_language,
+    )
+    return _finalize(parsed, output_language)

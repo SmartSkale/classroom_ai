@@ -1,0 +1,239 @@
+.quiz {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.25rem 1.75rem 4rem;
+}
+
+/* ---------- Breadcrumb ---------- */
+.quiz-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.quiz-breadcrumb a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.quiz-breadcrumb a:hover {
+  color: var(--text);
+}
+
+.quiz-breadcrumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- Layout ---------- */
+.quiz-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.quiz-preview-full {
+  grid-column: 1 / -1;
+}
+
+.quiz-grid-student {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 768px) {
+  .quiz-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Settings ---------- */
+.quiz-settings {
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.quiz-settings-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.quiz-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.quiz-control > span,
+.quiz-control legend {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.quiz-control select {
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- Preview ---------- */
+.quiz-preview-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.quiz-questions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.quiz-question {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.quiz-question-prompt {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.quiz-question-num {
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.quiz-options {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 1rem;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.quiz-option-letter {
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 0.3rem;
+}
+
+/* ---------- Actions ---------- */
+.quiz-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- States ---------- */
+.quiz-error {
+  margin: 0.25rem 0 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
+.quiz-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.quiz-error-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.quiz-error-box p {
+  margin: 0;
+  color: var(--danger);
+}
+
+/* ---------- Toast ---------- */
+.quiz-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: var(--toast-shadow);
+  animation: quiz-toast-in 0.2s ease;
+}
+
+.quiz-toast-success {
+  background: color-mix(in srgb, var(--success) 22%, var(--surface));
+  border: 1px solid var(--success);
+  color: var(--text);
+}
+
+.quiz-toast-error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--text);
+}
+
+@keyframes quiz-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 760px) {
+  .quiz-grid {
+    grid-template-columns: 1fr;
+  }
+  .quiz-settings {
+    position: static;
+  }
+  .quiz-options {
+    grid-template-columns: 1fr;
+  }
+}

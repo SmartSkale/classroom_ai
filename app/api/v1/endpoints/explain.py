@@ -1,10 +1,14 @@
 from typing import Annotated, Literal
 
+import functools
+
+import anyio
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.schemas.explain import ExplainFromTextRequest, ExplainResponse
+from app.schemas.explain import ExplainFromTextRequest, ExplainResponse, PdfExtractResponse
 from app.schemas.language import normalize_output_language
 from app.services import explanation as explanation_service
+from app.services.pdf_extract import extract_pdf_to_text
 
 router = APIRouter()
 
@@ -34,6 +38,7 @@ async def explain_text(
             output_language=body.output_language,
             topic_hint=body.topic_hint,
             llm_provider=_to_llm_provider(stack),
+            from_pdf=body.from_pdf,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -90,6 +95,10 @@ async def explain_one_image(
         raise HTTPException(status_code=502, detail=f"LLM request failed: {e!s}") from e
 
 
+_MAX_IMAGES = 20
+_MAX_IMAGES_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
 @router.post("/images", response_model=ExplainResponse)
 async def explain_images(
     files: ChapterScreenshots,
@@ -99,14 +108,33 @@ async def explain_images(
 ) -> ExplainResponse:
     if not files:
         raise HTTPException(status_code=400, detail="At least one image file is required.")
+    if len(files) > _MAX_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many images (max {_MAX_IMAGES}).",
+        )
 
     pairs: list[tuple[str, bytes]] = []
+    total_bytes = 0
     for uf in files:
         if not uf.filename:
             continue
         data = await uf.read()
-        if data:
-            pairs.append((uf.filename, data))
+        if not data:
+            continue
+        mime = explanation_service.guess_image_mime(data[:12])
+        if mime not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported image type for '{uf.filename}'. Use PNG or JPEG.",
+            )
+        total_bytes += len(data)
+        if total_bytes > _MAX_IMAGES_TOTAL_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail="Images are too large in total (max 50 MB).",
+            )
+        pairs.append((uf.filename, data))
 
     if not pairs:
         raise HTTPException(status_code=400, detail="No readable image bytes in upload.")
@@ -125,8 +153,25 @@ async def explain_images(
         raise HTTPException(status_code=502, detail=f"LLM request failed: {e!s}") from e
 
 
-def _form_bool(raw: str) -> bool:
-    return str(raw).lower() in ("true", "1", "yes", "on")
+@router.post("/pdf-extract", response_model=PdfExtractResponse)
+async def extract_pdf_text(
+    file: Annotated[UploadFile, File(description="PDF chapter or textbook excerpt")],
+) -> PdfExtractResponse:
+    """Extract selectable text from a PDF without calling the LLM."""
+    if not file.filename or not str(file.filename).lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Upload a single .pdf file.")
+    data = await file.read()
+    if not data or len(data) > 40 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="PDF is empty or too large (max 40 MB).")
+
+    try:
+        ext = await anyio.to_thread.run_sync(functools.partial(extract_pdf_to_text, data))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"PDF extraction failed: {e!s}") from e
+
+    return PdfExtractResponse(chapter_text=ext.chapter_text, notes=ext.notes)
 
 
 @router.post("/pdf", response_model=ExplainResponse)
@@ -135,10 +180,8 @@ async def explain_pdf(
     output_language: str = Form("english"),
     topic_hint: str | None = Form(None),
     stack: ModelStack = Form("openai"),
-    ocr_pages: str = Form("true"),
-    ocr_images: str = Form("true"),
 ) -> ExplainResponse:
-    """Extract text page-by-page (tables + optional OCR), then explain using that context."""
+    """Extract text page-by-page (tables), then explain using that context."""
     if not file.filename or not str(file.filename).lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Upload a single .pdf file.")
     data = await file.read()
@@ -152,8 +195,6 @@ async def explain_pdf(
             output_language=lang,
             topic_hint=(topic_hint or "").strip() or None,
             llm_provider=_to_llm_provider(stack),
-            ocr_pages=_form_bool(ocr_pages),
-            ocr_images=_form_bool(ocr_images),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

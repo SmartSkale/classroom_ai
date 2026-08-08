@@ -1,0 +1,346 @@
+.upload {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.75rem 4rem;
+}
+
+.upload-title {
+  margin: 0 0 1.75rem;
+  font-size: 1.7rem;
+}
+
+/* ---------- Dropzone ---------- */
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 200px;
+  padding: 2rem 1.5rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.dropzone-error {
+  border-color: var(--danger);
+}
+
+.dropzone-icon {
+  font-size: 1.8rem;
+}
+
+.dropzone-text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.dropzone-or {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dropzone-hint {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.dropzone-input {
+  display: none;
+}
+
+.dropzone-file {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 420px;
+  padding: 0.5rem 0.25rem;
+}
+
+.dropzone-files {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.dropzone-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.dropzone-clear {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.dropzone-clear:hover {
+  color: var(--danger);
+}
+
+.dropzone-file-icon {
+  font-size: 1.8rem;
+}
+
+.dropzone-file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  overflow: hidden;
+}
+
+.dropzone-file-info strong {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.dropzone-file-info span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dropzone-remove {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dropzone-remove:hover {
+  color: var(--text);
+  border-color: var(--danger);
+}
+
+/* ---------- Divider ---------- */
+.upload-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.upload-divider::before,
+.upload-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- Fields ---------- */
+.upload-field {
+  display: block;
+  position: relative;
+}
+
+.upload-textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  font: inherit;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.upload-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.upload-counter {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.55rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ---------- Output types ---------- */
+.upload-outputs {
+  margin: 1.75rem 0 0;
+  padding: 0;
+  border: none;
+}
+
+.upload-outputs legend {
+  padding: 0;
+  margin-bottom: 0.85rem;
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.upload-language {
+  margin-top: 1.75rem;
+}
+
+.upload-language select {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.upload-language-hint {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.upload-pdf-type {
+  margin-top: 1.25rem;
+  padding: 0;
+  border: none;
+}
+
+.upload-pdf-type legend {
+  padding: 0;
+  margin-bottom: 0.65rem;
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.upload-pdf-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.upload-radio input {
+  margin-top: 0.2rem;
+}
+
+.upload-pdf-type-hint {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.upload-pdf-type-error .upload-pdf-type-hint {
+  margin-bottom: 0.35rem;
+}
+
+.upload-outputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+.upload-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.92rem;
+  user-select: none;
+}
+
+.upload-checkbox:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.upload-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.upload-checkbox:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+/* ---------- Name + submit ---------- */
+.upload-name {
+  margin-top: 1.75rem;
+}
+
+.upload-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.upload-name input {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.upload-name input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.upload-submit {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.upload-error {
+  margin: 0.5rem 0 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.upload-success {
+  margin: 0.5rem 0 0;
+  color: var(--success, #15803d);
+  font-size: 0.88rem;
+}

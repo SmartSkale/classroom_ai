@@ -1,0 +1,79 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(80% 55% at 50% -10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 60%),
+    var(--bg);
+}
+
+.layout-main {
+  flex: 1;
+  width: 100%;
+}
+
+.layout-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.layout-footer-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.layout-footer-brand {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.layout-footer-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.layout-footer-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.layout-footer-links a:hover {
+  color: var(--text);
+}
+
+/* ---------- Auth layout ---------- */
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(70% 50% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 60%),
+    var(--bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-shadow-lg);
+}
+
+.auth-brand.logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
