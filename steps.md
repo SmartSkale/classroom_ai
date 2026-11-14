@@ -403,3 +403,129 @@ The Elastic IP keeps its address. When you start the instance again, the app res
 - [ ] SSH (port 22) is limited to **My IP**.
 - [ ] No keys were pasted into chat, GitHub, or screenshots.
 - [ ] You know how to stop the instance (Step 22).
+
+---
+
+## Part 8: Get the address `purnank.smartskale.tech`
+
+This makes the app open at **https://purnank.smartskale.tech**. The steps are the same as Step 18, using the domain `smartskale.tech` and the name `purnank`. You need access to the DNS settings of `smartskale.tech`, which is wherever the domain was bought (for example GoDaddy, Namecheap, Hostinger, Google Domains, or AWS Route 53).
+
+### Step 23. Find your server address
+
+You need the **SERVER_IP** from Step 8, the Elastic IP. Keep it open.
+
+### Step 24. Add the DNS record
+
+This tells the internet that `purnank.smartskale.tech` points to your server.
+
+1. Sign in to the website where you manage `smartskale.tech`.
+2. Open its **DNS settings** (sometimes called *DNS Management*, *Advanced DNS*, or *Zone file*).
+3. Add a new record with these values:
+
+| Field        | Value                                  |
+|--------------|----------------------------------------|
+| Type         | **A**                                  |
+| Name / Host  | **purnank** (only this word, not the full domain) |
+| Value / Points to | **`<SERVER_IP>`**                 |
+| TTL          | 300 (or the default)                   |
+
+4. Save the record.
+
+> **Route 53 (AWS):** open **Route 53 → Hosted zones → smartskale.tech → Create record**. Record name `purnank`, record type **A**, value `<SERVER_IP>`, TTL 300.
+> **Cloudflare:** if the cloud icon is orange, click it so it turns grey (**DNS only**). Otherwise the certificate in Step 26 will fail.
+
+### Step 25. Check that the address points to your server
+
+DNS changes can take 5 to 30 minutes. On your **Mac**, run:
+
+```bash
+dig +short purnank.smartskale.tech
+```
+
+It should print your SERVER_IP. If it prints nothing, wait 10 minutes and try again. (If `dig` is not found, use `nslookup purnank.smartskale.tech` instead.)
+
+Do not continue until the address shows your SERVER_IP.
+
+### Step 26. Tell Nginx the new name
+
+On the **server** (SSH window):
+
+```bash
+sudo nano /etc/nginx/sites-available/classroomai
+```
+
+Find the line `server_name _;` and change it to:
+
+```
+    server_name purnank.smartskale.tech;
+```
+
+Save with `Ctrl+O`, `Enter`, then exit with `Ctrl+X`. Then check and reload:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+`nginx -t` must say `syntax is ok` and `test is successful`.
+
+Open **http://purnank.smartskale.tech** on your Mac. You should see ClassroomAI. If not, wait a few more minutes for DNS and try again.
+
+### Step 27. Install the HTTPS certificate
+
+Without this step, the browser shows "Not secure". Run on the server:
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d purnank.smartskale.tech
+```
+
+Answer the prompts:
+1. Enter your email address (for expiry warnings).
+2. Agree to the terms with `Y`.
+3. Optional email news: `N` is fine.
+4. When asked whether to redirect HTTP to HTTPS, choose **2 (Redirect)**.
+
+Certbot changes the Nginx config for you and renews the certificate automatically.
+
+> **If certbot says the challenge failed:** the DNS record from Step 24 is not live yet (Step 25), or port 80 is blocked (Step 6). Fix that and run the same command again.
+
+### Step 28. Allow the new address in the app
+
+```bash
+nano /home/ubuntu/classroom_ai/.env
+```
+
+Set this line (replace any old value):
+
+```
+CORS_ORIGINS=https://purnank.smartskale.tech
+```
+
+Save and exit, then restart the backend:
+
+```bash
+sudo systemctl restart classroomai
+```
+
+### Step 29. Test the new address
+
+On your Mac, open these in a browser:
+
+- `https://purnank.smartskale.tech` → the ClassroomAI page, with a padlock icon.
+- `https://purnank.smartskale.tech/health` → `{"status":"ok"}`.
+
+Then run one feature from Step 17 (for example Lesson) to confirm everything works on the new address.
+
+### Step 30. Troubleshooting the address
+
+| Problem | Fix |
+|---|---|
+| `dig` shows nothing | DNS still updating. Wait and retry, or check the record name is exactly `purnank`. |
+| Opens the old server or a "Welcome to nginx" page | The `server_name` in Step 26 is still `_`. Fix it and reload Nginx. |
+| "Not secure" warning | Step 27 did not finish. Run the certbot command again. |
+| certbot "Timeout" or "Connection refused" | Port 80 is closed in `classroomai-sg`, or the DNS record is wrong. |
+| Browser says "This site can't be reached" | DNS is not updated yet, or Cloudflare proxy is on (turn it off). |
+| Features fail only on the new address | Check `CORS_ORIGINS` in `.env` (Step 28), then restart the backend. |
+
+> **More people later:** you can add more addresses the same way, for example `second.smartskale.tech`. Add another A record in Step 24, add the name to `server_name` separated by spaces (`server_name purnank.smartskale.tech second.smartskale.tech;`), and run certbot with `-d` for each name.
