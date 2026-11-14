@@ -174,11 +174,11 @@ git --version && python3 --version && node --version && npm --version
 
 ### Step 11. Download the code
 
-Replace `<YOUR_GITHUB_USER>` with your GitHub username. If your repository is private, GitHub will ask for your username and a personal access token (the password field takes the token).
+The repository is at `github.com/SmartSkale/classroom_ai`. If it is private, GitHub will ask for your username and a personal access token (the password field takes the token).
 
 ```bash
 cd /home/ubuntu
-git clone https://github.com/<YOUR_GITHUB_USER>/classroom_ai.git
+git clone https://github.com/SmartSkale/classroom_ai.git
 cd classroom_ai
 ```
 
