@@ -2,18 +2,22 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+Difficulty = Literal["easy", "medium", "hard"]
+
 
 class QuizGenerateRequest(BaseModel):
     topic: str = Field(..., min_length=2, max_length=200)
     context_text: str | None = Field(default=None, max_length=30000)
     output_language: Literal["english", "hindi", "roman_hindi"] = "english"
     stack: str = Field(default="openai", description="openai | opensource")
-    question_count: int = Field(default=5, ge=1, le=15)
-    difficulty: Literal["remedial", "standard", "advanced"] = "standard"
+    easy_count: int = Field(default=2, ge=0, le=15)
+    medium_count: int = Field(default=2, ge=0, le=15)
+    hard_count: int = Field(default=1, ge=0, le=15)
 
 
 class QuizQuestion(BaseModel):
     id: str
+    difficulty: Difficulty | None = None
     question: str
     options: list[str] = Field(min_length=2, max_length=6)
     correct_option_index: int

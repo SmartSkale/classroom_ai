@@ -1,0 +1,16 @@
+[Unit]
+Description=ClassroomAI API (FastAPI + Uvicorn)
+After=network.target
+
+[Service]
+# Replace "ubuntu" and the path with your server user and folder if they differ.
+User=ubuntu
+WorkingDirectory=/home/ubuntu/classroom_ai
+EnvironmentFile=/home/ubuntu/classroom_ai/.env
+ExecStart=/home/ubuntu/classroom_ai/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --timeout-keep-alive 120
+# Keep exactly one worker: video, audio, and slide files are held in memory, so other workers cannot see them.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

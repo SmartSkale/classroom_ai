@@ -306,6 +306,65 @@ def _finalize(parsed: ExplainResponse, output_language: OutputLanguage) -> Expla
     return parsed.model_copy(update={"output_language_used": output_language})
 
 
+_DEVANAGARI = re.compile(r"[ऀ-ॿ]")
+_LATIN = re.compile(r"[A-Za-z]")
+
+
+def _language_matches(text: str, output_language: OutputLanguage) -> bool:
+    """Check the written text, not the request: models often return English when asked for Hindi."""
+    dev = len(_DEVANAGARI.findall(text))
+    lat = len(_LATIN.findall(text))
+    if output_language == "hindi":
+        return dev > 0 and dev >= 0.5 * (dev + lat)
+    if output_language == "roman_hindi":
+        return dev == 0 and lat > 0
+    return dev == 0
+
+
+async def _translate_lesson(parsed: ExplainResponse, output_language: OutputLanguage, llm_provider: str | None) -> ExplainResponse:
+    """One translation pass that keeps the lesson's structure, examples and visuals."""
+    provider = get_llm_provider(vision=False, provider=llm_provider)
+    target = "Hindi in Devanagari script (देवनागरी)" if output_language == "hindi" else "Hindi written in Latin letters only (Roman Hindi)"
+    payload = json.dumps(
+        {"explanation_markdown": parsed.explanation_markdown, "simple_examples": parsed.simple_examples},
+        ensure_ascii=False,
+    )
+    messages: list[Message] = [
+        {"role": "system", "content": "You translate school lesson material accurately and output strict JSON only."},
+        {
+            "role": "user",
+            "content": (
+                f"Translate every learner-facing string in this JSON into {target}. "
+                "Keep the markdown structure exactly (headings, bold, bullet lists) and keep the same meaning. "
+                "Do not add English words except well-known technical symbols. "
+                'Return JSON only with keys "explanation_markdown" (string) and "simple_examples" (array of strings).\n\n'
+                + payload
+            ),
+        },
+    ]
+    raw = await provider.complete_chat(messages, max_tokens=_explain_max_tokens(len(payload)), temperature=0.2)
+    data = _extract_json_object(raw) or {}
+    md = data.get("explanation_markdown")
+    examples = data.get("simple_examples")
+    if not isinstance(md, str) or not md.strip():
+        return parsed
+    if not isinstance(examples, list) or not examples:
+        examples = parsed.simple_examples
+    return parsed.model_copy(
+        update={
+            "explanation_markdown": md.strip(),
+            "simple_examples": [str(x).strip() for x in examples if str(x).strip()],
+        }
+    )
+
+
+async def _ensure_language(parsed: ExplainResponse, output_language: OutputLanguage, llm_provider: str | None) -> ExplainResponse:
+    text = parsed.explanation_markdown + "\n" + "\n".join(parsed.simple_examples)
+    if _language_matches(text, output_language):
+        return parsed
+    return await _translate_lesson(parsed, output_language, llm_provider)
+
+
 async def explain_from_pdf_bytes(
     pdf_bytes: bytes,
     *,
@@ -360,7 +419,8 @@ async def explain_from_text(
         max_tokens=_explain_max_tokens(body_len),
         temperature=0.35,
     )
-    return _finalize(_parse_explain_json(raw), output_language)
+    parsed = await _ensure_language(_parse_explain_json(raw), output_language, llm_provider)
+    return _finalize(parsed, output_language)
 
 
 def _guess_mime(header: bytes) -> str:
@@ -416,4 +476,5 @@ async def explain_from_image_bytes(
 
     provider = get_llm_provider(vision=True, provider=llm_provider)
     raw = await provider.complete_chat(messages, max_tokens=4096, temperature=0.35)
-    return _finalize(_parse_explain_json(raw), output_language)
+    parsed = await _ensure_language(_parse_explain_json(raw), output_language, llm_provider)
+    return _finalize(parsed, output_language)

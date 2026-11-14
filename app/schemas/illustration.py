@@ -8,7 +8,7 @@ class IllustrationRequest(BaseModel):
     stack: str = Field(default="openai", description="openai | opensource")
     source: Literal["ai", "pexels"] = Field(
         default="ai",
-        description="ai = DALL·E or SD WebUI; pexels = stock photo from Pexels (requires PEXELS_API_KEY).",
+        description="ai = OpenAI image model or SD WebUI; pexels = stock photo from Pexels (requires PEXELS_API_KEY).",
     )
     style: str = Field(
         default=(

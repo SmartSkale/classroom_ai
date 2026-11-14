@@ -93,3 +93,10 @@ Secrets belong in **`.env`** (gitignored), not in the repository. For a deeper w
 ---
 
 *ClassroomAI — one chapter in; a whole lesson out.*
+
+AWS IAM user
+
+https://856244077537.signin.aws.amazon.com/console
+
+User Name: SmartSkaleDeploy
+Password:  SmartSkale@deploy

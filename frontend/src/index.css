@@ -1,12 +1,12 @@
 :root {
-  /* Black-based UI (always — not tied to OS theme) */
-  --bg: #000000;
-  --surface: #141416;
-  --text: #f4f4f5;
-  --muted: #a1a1aa;
-  --border: #27272a;
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
+  /* Deep navy UI (always — not tied to OS theme) */
+  --bg: #0d1126;
+  --surface: #171d3d;
+  --text: #eef2ff;
+  --muted: #a5aed6;
+  --border: #2c3568;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
   --danger: #f87171;
   --radius: 10px;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -32,5 +32,5 @@ body {
 
 #root {
   min-height: 100vh;
-  background: var(--bg);
+  background: transparent;
 }

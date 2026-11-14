@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     openai_chat_model: str = "gpt-4o-mini"
+    # OpenAI image model for AI illustrations and infographics (gpt-image-1.5 is the newest documented model).
+    openai_image_model: str = "gpt-image-1.5"
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_chat_model: str = "llama3.2"

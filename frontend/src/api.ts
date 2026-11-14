@@ -37,8 +37,11 @@ export const OUTPUT_LANGUAGE_LABELS: Record<OutputLanguageCode, string> = {
 }
 
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard'
+
 export type QuizQuestion = {
   id: string
+  difficulty?: QuizDifficulty | null
   question: string
   options: string[]
   correct_option_index: number
@@ -201,8 +204,9 @@ export async function generateQuiz(body: {
   context_text: string | null
   output_language: OutputLanguageCode
   stack: ModelStack
-  question_count: number
-  difficulty: 'remedial' | 'standard' | 'advanced'
+  easy_count: number
+  medium_count: number
+  hard_count: number
 }): Promise<QuizResponse> {
   const res = await fetch(`${API}/quiz/generate`, {
     method: 'POST',
@@ -213,12 +217,27 @@ export async function generateQuiz(body: {
   return res.json()
 }
 
+/** Excel workbook with one row per question: question, option1-4, correct_answer, reasoning. */
+export async function exportQuizXlsx(quiz: QuizResponse): Promise<Blob> {
+  const res = await fetch(`${API}/quiz/export.xlsx`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(quiz),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.blob()
+}
+
 export type SlideItem = {
   title: string
   bullets: string[]
   speaker_notes?: string | null
+  layout: 'cover' | 'split_right' | 'split_left' | 'hero' | 'text'
+  image_prompt?: string | null
   image_query?: string | null
   photo_attribution?: string | null
+  background_url?: string | null
+  image_url?: string | null
 }
 
 export type SlideDeckResponse = {
@@ -291,6 +310,36 @@ export async function fetchSpeechBlob(audioId: string): Promise<Blob> {
   const res = await fetch(`${API}/audio/${encodeURIComponent(audioId)}/file`)
   if (!res.ok) throw new Error(await readError(res))
   return res.blob()
+}
+
+export type PresenterExpression = 'neutral' | 'happy' | 'excited' | 'thinking'
+
+export type PresenterSegment = {
+  heading: string
+  narration: string
+  expression: PresenterExpression
+}
+
+export type PresenterScript = {
+  title: string
+  output_language_used: OutputLanguageCode
+  segments: PresenterSegment[]
+}
+
+export async function generatePresenterScript(body: {
+  topic: string
+  context_text: string | null
+  output_language: OutputLanguageCode
+  stack: ModelStack
+  segment_count: number
+}): Promise<PresenterScript> {
+  const res = await fetch(`${API}/presenter/script`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json()
 }
 
 export type FlashcardItem = { front: string; back: string }

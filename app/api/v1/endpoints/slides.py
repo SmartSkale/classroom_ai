@@ -27,6 +27,15 @@ async def generate_slide_deck(body: SlideDeckGenerateRequest) -> SlideDeckRespon
         raise HTTPException(status_code=502, detail=f"Slide deck generation failed: {e!s}") from e
 
 
+@router.get("/{deck_id}/media/{name}")
+async def slide_media(deck_id: str, name: str) -> Response:
+    data = await slides_service.get_media_file(deck_id, name)
+    if not data:
+        raise HTTPException(status_code=404, detail="Slide image not found or expired.")
+    content, media_type = data
+    return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})
+
+
 @router.get("/{deck_id}/file")
 async def download_slide_deck(deck_id: str) -> Response:
     data = await slides_service.get_deck_file(deck_id)
